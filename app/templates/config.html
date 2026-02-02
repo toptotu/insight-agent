@@ -27,6 +27,18 @@
 </section>
 
 <section class="panel">
+  <div class="tabs">
+    <button class="tab-button active" data-tab="tab-domain">领域</button>
+    <button class="tab-button" data-tab="tab-skill">Skill</button>
+    <button class="tab-button" data-tab="tab-agent">Agent</button>
+    <button class="tab-button" data-tab="tab-doc">RAG文档</button>
+    <button class="tab-button" data-tab="tab-upload">RAG上传</button>
+    <button class="tab-button" data-tab="tab-crawler">信息源爬取</button>
+    <button class="tab-button" data-tab="tab-template">报告模板</button>
+  </div>
+</section>
+
+<section class="panel tab-content active" id="tab-domain">
   <h3>自定义领域</h3>
   <div class="form-grid">
     <label>
@@ -59,7 +71,7 @@
   <div id="domainList" class="table"></div>
 </section>
 
-<section class="panel">
+<section class="panel tab-content" id="tab-skill">
   <h3>自定义Skill</h3>
   <p class="meta">可参考Claude等通用技能模板，设置类别、输入输出与Prompt。</p>
   <div class="form-grid">
@@ -120,7 +132,7 @@
   <div id="skillList" class="table"></div>
 </section>
 
-<section class="panel">
+<section class="panel tab-content" id="tab-agent">
   <h3>自定义Agent</h3>
   <div class="form-grid">
     <label>
@@ -173,7 +185,7 @@
   <div id="agentList" class="table"></div>
 </section>
 
-<section class="panel">
+<section class="panel tab-content" id="tab-template">
   <h3>报告模板配置</h3>
   <p class="meta">可配置输出格式与内容要求（例如摘要页、技术洞察页、总结页）。</p>
   <div class="form-grid">
@@ -201,7 +213,7 @@
   <div id="templateList" class="table"></div>
 </section>
 
-<section class="panel">
+<section class="panel tab-content" id="tab-doc">
   <h3>RAG知识录入</h3>
   <div class="form-grid">
     <label>
@@ -234,7 +246,39 @@
   <div id="docList" class="table"></div>
 </section>
 
-<section class="panel">
+<section class="panel tab-content" id="tab-upload">
+  <h3>RAG文件上传（PDF / Word / PPT）</h3>
+  <p class="meta">支持PDF、DOCX、PPTX上传并自动向量化。</p>
+  <div class="form-grid">
+    <label>
+      领域选择
+      <select id="uploadDomainSelect"></select>
+    </label>
+    <label>
+      来源类型
+      <input id="uploadSourceTypeInput" type="text" placeholder="standard/whitepaper/paper/upload" />
+    </label>
+  </div>
+  <div class="form-grid">
+    <label>
+      来源
+      <input id="uploadSourceInput" type="text" placeholder="来源机构或链接" />
+    </label>
+    <label>
+      标题（可选）
+      <input id="uploadTitleInput" type="text" placeholder="可不填，默认文件名" />
+    </label>
+  </div>
+  <label>
+    选择文件
+    <input id="uploadFileInput" type="file" accept=".pdf,.docx,.pptx" />
+  </label>
+  <div class="actions">
+    <button id="uploadDocBtn" class="button primary">上传并向量化</button>
+  </div>
+</section>
+
+<section class="panel tab-content" id="tab-crawler">
   <h3>信息源配置与自动爬取</h3>
   <p class="meta">配置来源URL与抓取频率，系统将按周期自动抓取并写入RAG。</p>
   <div class="form-grid">

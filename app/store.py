@@ -83,3 +83,15 @@ class TaskStore:
                 }
             )
         return items
+
+    def delete_task(self, task_id: str) -> bool:
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM tasks WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            if not row:
+                return False
+            conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+            conn.commit()
+        return True

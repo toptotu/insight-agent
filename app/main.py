@@ -3,7 +3,7 @@ import os
 from dataclasses import asdict
 from typing import Dict, List
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from app.agents import load_agent_configs, run_agents
 from app.config_store import ConfigStore
 from app.crawler import CrawlerService
+from app.file_ingest import SUPPORTED_EXTENSIONS, extract_text_from_upload
 from app.llm import create_llm_client
 from app.rag import RAGStore
 from app.report import build_insight_summary, build_report_sections
@@ -262,6 +263,14 @@ def list_tasks(limit: int = 20) -> JSONResponse:
     limit = min(max(limit, 1), 200)
     items = task_store.list_tasks(limit=limit)
     return JSONResponse({"items": items})
+
+
+@app.delete("/api/tasks/{task_id}", response_class=JSONResponse)
+def delete_task(task_id: str) -> JSONResponse:
+    deleted = task_store.delete_task(task_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return JSONResponse({"status": "deleted"})
 
 
 @app.get("/api/config/domains", response_class=JSONResponse)
@@ -618,6 +627,37 @@ def create_custom_document(request_body: CreateDocumentRequest) -> JSONResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     rag_store.invalidate(request_body.domain_id)
+    return JSONResponse(doc)
+
+
+@app.post("/api/config/documents/upload", response_class=JSONResponse)
+def upload_document(
+    domain_id: str = Form(...),
+    source_type: str = Form("upload"),
+    source: str = Form(""),
+    title: str = Form(""),
+    file: UploadFile = File(...),
+) -> JSONResponse:
+    if not rag_store.get_domain(domain_id):
+        raise HTTPException(status_code=404, detail="Domain not found")
+    filename = file.filename or "upload"
+    ext = os.path.splitext(filename.lower())[1]
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+    content = file.file.read()
+    text, _ = extract_text_from_upload(content, filename)
+    if not text:
+        raise HTTPException(status_code=400, detail="No extractable text found")
+    if not title:
+        title = filename
+    doc = config_store.create_document(
+        domain_id=domain_id,
+        title=title,
+        source=source or filename,
+        source_type=source_type,
+        content=text[:5000],
+    )
+    rag_store.invalidate(domain_id)
     return JSONResponse(doc)
 
 

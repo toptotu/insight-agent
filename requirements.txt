@@ -4,3 +4,7 @@ jinja2
 requests
 numpy
 faiss-cpu
+python-multipart
+pypdf
+python-docx
+python-pptx

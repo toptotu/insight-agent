@@ -426,7 +426,10 @@ function renderHistoryTable(container, items) {
         <div>${item.objective}</div>
         <div>${item.llm_mode}</div>
         <div>${item.summary_line}</div>
-        <div><a href="/ui/report/${item.task_id}" target="_blank">打开报告</a></div>
+        <div>
+          <a href="/ui/report/${item.task_id}" target="_blank">打开报告</a>
+          <button class="button action danger" data-action="delete" data-id="${item.task_id}">删除</button>
+        </div>
       </div>
     `
     )
@@ -708,6 +711,23 @@ async function initHistoryPage() {
   try {
     const response = await fetchJSON("/api/tasks?limit=50");
     renderHistoryTable(historyTable, response.items || []);
+    historyTable.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action='delete']");
+      if (!button) {
+        return;
+      }
+      if (!confirm("确认删除该历史记录？")) {
+        return;
+      }
+      const taskId = button.dataset.id;
+      try {
+        await fetchJSON(`/api/tasks/${taskId}`, { method: "DELETE" });
+        const refresh = await fetchJSON("/api/tasks?limit=50");
+        renderHistoryTable(historyTable, refresh.items || []);
+      } catch (error) {
+        historyTable.textContent = `删除失败：${error.message}`;
+      }
+    });
   } catch (error) {
     historyTable.textContent = `加载失败：${error.message}`;
   }
@@ -782,6 +802,12 @@ async function initConfigPage() {
   const createDocBtn = document.getElementById("createDocBtn");
   const cancelDocBtn = document.getElementById("cancelDocBtn");
   const docList = document.getElementById("docList");
+  const uploadDomainSelect = document.getElementById("uploadDomainSelect");
+  const uploadSourceTypeInput = document.getElementById("uploadSourceTypeInput");
+  const uploadSourceInput = document.getElementById("uploadSourceInput");
+  const uploadTitleInput = document.getElementById("uploadTitleInput");
+  const uploadFileInput = document.getElementById("uploadFileInput");
+  const uploadDocBtn = document.getElementById("uploadDocBtn");
 
   let editingDomainId = null;
   let editingSkillId = null;
@@ -820,6 +846,7 @@ async function initConfigPage() {
     populateDomainSelect(agentDomainSelect);
     populateDomainSelect(docDomainSelect);
     populateDomainSelect(crawlerDomainSelect);
+    populateDomainSelect(uploadDomainSelect);
     populateSkillCheckboxes();
   }
 
@@ -1094,6 +1121,7 @@ async function initConfigPage() {
   populateDomainSelect(agentDomainSelect);
   populateDomainSelect(docDomainSelect);
   populateDomainSelect(crawlerDomainSelect);
+  populateDomainSelect(uploadDomainSelect);
   populateSkillCheckboxes();
   await refreshLists();
 
@@ -1329,6 +1357,39 @@ async function initConfigPage() {
     }
   });
 
+  if (uploadDocBtn) {
+    uploadDocBtn.addEventListener("click", async () => {
+      try {
+        if (!uploadFileInput.files || !uploadFileInput.files.length) {
+          showMessage("请选择文件");
+          return;
+        }
+        const formData = new FormData();
+        formData.append("domain_id", uploadDomainSelect.value);
+        formData.append("source_type", uploadSourceTypeInput.value.trim() || "upload");
+        formData.append("source", uploadSourceInput.value.trim());
+        formData.append("title", uploadTitleInput.value.trim());
+        formData.append("file", uploadFileInput.files[0]);
+        const response = await fetch("/api/config/documents/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "上传失败");
+        }
+        showMessage("文件已上传并向量化");
+        uploadSourceTypeInput.value = "";
+        uploadSourceInput.value = "";
+        uploadTitleInput.value = "";
+        uploadFileInput.value = "";
+        await refreshLists();
+      } catch (error) {
+        showMessage(`上传失败：${error.message}`);
+      }
+    });
+  }
+
   createTemplateBtn.addEventListener("click", async () => {
     try {
       const sections = templateSectionsInput.value.trim()
@@ -1414,6 +1475,19 @@ async function initConfigPage() {
   cancelDocBtn.addEventListener("click", () => resetDocForm());
   cancelTemplateBtn.addEventListener("click", () => resetTemplateForm());
   cancelCrawlerBtn.addEventListener("click", () => resetCrawlerForm());
+
+  const tabButtons = document.querySelectorAll(".tab-button");
+  const tabContents = document.querySelectorAll(".tab-content");
+  tabButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.dataset.tab;
+      tabButtons.forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+      tabContents.forEach((content) => {
+        content.classList.toggle("active", content.id === target);
+      });
+    });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {

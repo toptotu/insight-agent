@@ -45,6 +45,11 @@ export CRAWLER_MAX_CHARS=5000
 Use `/ui/config` to manage PPT report templates. The insight page can select a
 template to control slide layout (summary, per-topic, closing, etc.).
 
+## RAG file upload
+
+Upload PDF/DOCX/PPTX files in `/ui/config` -> "RAG上传" and the content will be
+ingested and indexed automatically.
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.
