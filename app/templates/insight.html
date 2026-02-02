@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+  <h2>洞察任务配置</h2>
+  <div class="form-grid">
+    <label>
+      领域选择
+      <select id="domainSelect"></select>
+    </label>
+    <label>
+      洞察目标
+      <textarea id="objectiveInput" rows="3" placeholder="例如：6G技术洞察与安全验证能力分析"></textarea>
+    </label>
+  </div>
+  <div class="form-grid">
+    <div>
+      <h4>Agent选择</h4>
+      <div id="agentsContainer" class="checkbox-group"></div>
+    </div>
+    <div>
+      <h4>Skill选择</h4>
+      <div id="skillsContainer" class="checkbox-group"></div>
+    </div>
+  </div>
+  <div class="form-grid">
+    <label>
+      RAG TopK
+      <input id="topKInput" type="number" min="1" max="20" value="5" />
+    </label>
+    <label>
+      RAG Min Score
+      <input id="minScoreInput" type="number" min="0" max="10" step="0.1" value="0.1" />
+    </label>
+    <label class="checkbox-inline">
+      <input id="rerankInput" type="checkbox" />
+      启用重排（预留）
+    </label>
+  </div>
+  <div class="actions">
+    <button id="runInsightBtn" class="button primary">运行洞察</button>
+  </div>
+</section>
+
+<section class="panel" id="resultPanel">
+  <h2>洞察结果</h2>
+  <div id="resultMeta" class="meta"></div>
+  <h3>洞察总结</h3>
+  <pre id="resultSummary" class="output"></pre>
+  <h3>能力识别与验证报告</h3>
+  <div id="resultCapabilities" class="output"></div>
+  <h3>证据链</h3>
+  <div id="resultEvidence" class="output"></div>
+</section>
+{% endblock %}

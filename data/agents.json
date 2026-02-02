@@ -1,0 +1,26 @@
+[
+  {
+    "id": "standards_agent",
+    "name": "标准抓取Agent",
+    "focus": "标准草案与技术规范",
+    "description": "聚焦标准化组织的6G规范、愿景与指标",
+    "default_query": "6G 标准 愿景 指标 架构 关键技术",
+    "skill_ids": ["evidence_chain", "comparison", "capability_verification"]
+  },
+  {
+    "id": "whitepaper_agent",
+    "name": "厂商白皮书Agent",
+    "focus": "厂商路线图与技术方案",
+    "description": "聚焦厂商白皮书中的路线图、架构与能力指标",
+    "default_query": "6G 白皮书 路线图 关键能力 产业化",
+    "skill_ids": ["evidence_chain", "comparison", "risk_identification"]
+  },
+  {
+    "id": "security_paper_agent",
+    "name": "安全论文分析Agent",
+    "focus": "安全架构与威胁模型",
+    "description": "聚焦安全论文中的威胁、攻击面、验证方法",
+    "default_query": "6G 安全 可信 零信任 隐私 抗攻击",
+    "skill_ids": ["evidence_chain", "risk_identification", "capability_verification"]
+  }
+]

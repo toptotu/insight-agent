@@ -1,0 +1,22 @@
+[
+  {
+    "id": "evidence_chain",
+    "name": "证据链构建",
+    "description": "将洞察结论与文档证据进行绑定"
+  },
+  {
+    "id": "comparison",
+    "name": "对比分析",
+    "description": "跨来源对比关键观点与指标"
+  },
+  {
+    "id": "risk_identification",
+    "name": "风险识别",
+    "description": "识别潜在风险、漏洞或矛盾"
+  },
+  {
+    "id": "capability_verification",
+    "name": "能力识别与验证",
+    "description": "从洞察中识别安全能力并给出验证建议"
+  }
+]

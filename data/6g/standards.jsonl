@@ -1,0 +1,3 @@
+{"id":"std-itu-vision","title":"ITU 6G愿景草案摘要","source":"ITU-R","source_type":"standard","content":"6G愿景强调太赫兹通信、空天地一体网络与智能原生网络。关键指标包括超低时延、超高可靠性与全域覆盖。标准草案提出端到端安全与可信管理作为核心能力。"}
+{"id":"std-3gpp-roadmap","title":"3GPP 6G路线图摘要","source":"3GPP","source_type":"standard","content":"3GPP路线图提出6G分阶段推进，强调新型空口、AI原生优化与绿色节能。安全方面强调零信任框架与跨域身份管理。"}
+{"id":"std-etsi-security","title":"ETSI 6G安全参考架构摘要","source":"ETSI","source_type":"standard","content":"ETSI安全参考架构提出多层安全治理与链路级安全验证，覆盖终端、网络与核心云。强调抗干扰、隐私计算与安全编排。"}

@@ -1,0 +1,3 @@
+{"id":"sec-zero-trust","title":"6G零信任架构安全分析","source":"SecurityConf 2024","source_type":"paper","content":"论文提出6G零信任架构，强调持续身份验证与动态授权。建议通过模拟攻击面与端到端加密验证能力，衡量安全成熟度。"}
+{"id":"sec-privacy","title":"6G隐私保护与可信计算研究","source":"Journal of 6G Security 2025","source_type":"paper","content":"研究提出在6G中使用联邦学习与隐私计算保护用户数据，强调差分隐私与安全多方计算的验证方法。"}
+{"id":"sec-anti-jam","title":"6G抗干扰与鲁棒通信分析","source":"Wireless Security Symposium 2024","source_type":"paper","content":"论文分析6G抗干扰机制，提出射频干扰注入实验与链路鲁棒性评估作为验证手段。"}

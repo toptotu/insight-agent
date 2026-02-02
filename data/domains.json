@@ -1,0 +1,34 @@
+{
+  "6g": {
+    "name": "6G技术洞察",
+    "description": "面向6G标准、白皮书与安全研究的综合洞察。",
+    "rag_sources": [
+      {
+        "id": "standards",
+        "label": "标准",
+        "path": "data/6g/standards.jsonl"
+      },
+      {
+        "id": "whitepapers",
+        "label": "厂商白皮书",
+        "path": "data/6g/whitepapers.jsonl"
+      },
+      {
+        "id": "security_papers",
+        "label": "安全论文",
+        "path": "data/6g/security_papers.jsonl"
+      }
+    ],
+    "default_agents": [
+      "standards_agent",
+      "whitepaper_agent",
+      "security_paper_agent"
+    ],
+    "default_skills": [
+      "evidence_chain",
+      "risk_identification",
+      "capability_verification",
+      "comparison"
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+  <h1>技术洞察平台</h1>
+  <p>
+    面向技术洞察专家的多智能体 + Skill + RAG 平台，支持不同领域洞察、证据链与安全验证能力识别。
+  </p>
+  <div class="hero-actions">
+    <a class="button primary" href="/ui/insight">进入洞察工作台</a>
+  </div>
+</section>
+<section class="card-grid">
+  <div class="card">
+    <h3>多Agent协作</h3>
+    <p>标准Agent、白皮书Agent、安全论文Agent等可灵活组合。</p>
+  </div>
+  <div class="card">
+    <h3>Skill能力库</h3>
+    <p>证据链、对比分析、风险识别、能力验证一键启用。</p>
+  </div>
+  <div class="card">
+    <h3>RAG增强</h3>
+    <p>领域可配置的RAG检索与召回策略，支持不同洞察主题。</p>
+  </div>
+</section>
+{% endblock %}

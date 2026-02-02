@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+  <h2>洞察报告</h2>
+  <p class="meta">任务ID：{{ task_id }}</p>
+  <div id="reportMeta" class="meta"></div>
+  <h3>洞察总结</h3>
+  <pre id="reportSummary" class="output"></pre>
+  <h3>能力识别与验证报告</h3>
+  <div id="reportCapabilities" class="output"></div>
+  <h3>Agent洞察结果</h3>
+  <div id="reportAgents" class="output"></div>
+  <h3>证据链</h3>
+  <div id="reportEvidence" class="output"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.__REPORT_TASK_ID__ = "{{ task_id }}";
+</script>
+{% endblock %}
