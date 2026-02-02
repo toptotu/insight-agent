@@ -146,6 +146,68 @@ function renderViewpoints(container, comparison) {
   });
 }
 
+function renderTrending(container, trend) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!trend || !trend.trending_keywords) {
+    container.textContent = "";
+    return;
+  }
+  trend.trending_keywords.forEach((keyword) => {
+    container.appendChild(createTag(keyword));
+  });
+}
+
+function renderOutline(container, outline) {
+  if (!container) {
+    return;
+  }
+  if (!outline || !outline.outline) {
+    container.textContent = "";
+    return;
+  }
+  const lines = ["报告大纲：", ...outline.outline];
+  if (outline.contributors && outline.contributors.length) {
+    lines.push(`贡献Agent：${outline.contributors.join("、")}`);
+  }
+  container.textContent = lines.join("\n");
+}
+
+function renderVerificationPlan(container, plan) {
+  if (!container) {
+    return;
+  }
+  if (!plan || !plan.plan) {
+    container.textContent = "";
+    return;
+  }
+  const lines = ["验证计划：", ...plan.plan];
+  container.textContent = lines.join("\n");
+}
+
+function renderSourceCollection(container, collection) {
+  if (!container) {
+    return;
+  }
+  if (!collection) {
+    container.textContent = "";
+    return;
+  }
+  const lines = ["洞察源采集建议："];
+  if (collection.recommended_sources) {
+    collection.recommended_sources.forEach((item) => lines.push(`- ${item}`));
+  }
+  if (collection.source_type_counts) {
+    lines.push("当前证据来源分布：");
+    Object.keys(collection.source_type_counts).forEach((key) => {
+      lines.push(`- ${key}: ${collection.source_type_counts[key]}`);
+    });
+  }
+  container.textContent = lines.join("\n");
+}
+
 function renderBarChart(container, labels, values) {
   if (!container) {
     return;
@@ -270,10 +332,11 @@ async function initInsightPage() {
       .forEach((agent) => {
         const checked = defaults.includes(agent.agent_id);
         const originLabel = agent.origin === "custom" ? "【自定义】" : "";
+        const categoryLabel = agent.category ? `(${agent.category})` : "";
         agentsContainer.appendChild(
           createCheckbox(
             agent.agent_id,
-            `${originLabel}${agent.name} - ${agent.focus}`,
+            `${originLabel}${agent.name}${categoryLabel} - ${agent.focus}`,
             "agents",
             checked
           )
@@ -365,14 +428,18 @@ async function initReportPage() {
   const reportDate = document.getElementById("reportDate");
   const reportSummary = document.getElementById("reportSummary");
   const reportSummaryCards = document.getElementById("reportSummaryCards");
+  const reportOutline = document.getElementById("reportOutline");
   const reportViewpoints = document.getElementById("reportViewpoints");
   const reportComparison = document.getElementById("reportComparison");
+  const reportTrendInsight = document.getElementById("reportTrendInsight");
   const reportCapabilityChart = document.getElementById("reportCapabilityChart");
   const reportCapabilities = document.getElementById("reportCapabilities");
   const reportCustomSkills = document.getElementById("reportCustomSkills");
+  const reportVerificationPlan = document.getElementById("reportVerificationPlan");
   const reportEvidenceChart = document.getElementById("reportEvidenceChart");
   const reportAgents = document.getElementById("reportAgents");
   const reportEvidence = document.getElementById("reportEvidence");
+  const reportSourceCollection = document.getElementById("reportSourceCollection");
 
   try {
     const response = await fetchJSON(`/api/insights/${window.__REPORT_TASK_ID__}`);
@@ -382,13 +449,21 @@ async function initReportPage() {
     reportDate.textContent = response.created_at ? `生成时间：${formatDate(response.created_at)}` : "";
     reportSummary.textContent = response.insight_summary || "";
     renderSummaryCards(reportSummaryCards, response.insight_summary || "");
-    renderViewpoints(reportViewpoints, skillOutputs.comparison);
+    renderOutline(reportOutline, skillOutputs.report_outline);
+
+    if (skillOutputs.trend_synthesis && skillOutputs.trend_synthesis.trending_keywords) {
+      renderTrending(reportViewpoints, skillOutputs.trend_synthesis);
+      reportTrendInsight.textContent = skillOutputs.trend_synthesis.insight || "";
+    } else {
+      renderViewpoints(reportViewpoints, skillOutputs.comparison);
+    }
     reportComparison.textContent = skillOutputs.comparison
       ? skillOutputs.comparison.observation
       : "暂无对比分析。";
 
     renderCapabilityReport(reportCapabilities, response.capability_report);
     renderCustomSkills(reportCustomSkills, skillOutputs.custom_skills);
+    renderVerificationPlan(reportVerificationPlan, skillOutputs.verification_plan);
 
     const capabilityCounts = { 高: 0, 中: 0, 低: 0 };
     (response.capability_report.capabilities || []).forEach((cap) => {
@@ -409,6 +484,7 @@ async function initReportPage() {
 
     renderAgentResults(reportAgents, response.agent_results);
     renderEvidence(reportEvidence, evidenceChain);
+    renderSourceCollection(reportSourceCollection, skillOutputs.source_collection);
   } catch (error) {
     if (reportSummary) {
       reportSummary.textContent = `加载失败：${error.message}`;
@@ -454,6 +530,7 @@ async function initConfigPage() {
   const agentDomainSelect = document.getElementById("agentDomainSelect");
   const agentIdInput = document.getElementById("agentIdInput");
   const agentSkillSelect = document.getElementById("agentSkillSelect");
+  const agentCategorySelect = document.getElementById("agentCategorySelect");
   const createAgentBtn = document.getElementById("createAgentBtn");
   const agentList = document.getElementById("agentList");
 
@@ -535,10 +612,11 @@ async function initConfigPage() {
 
     renderSimpleTable(
       agentList,
-      ["Agent ID", "名称", "关注点", "领域", "Skill", "创建时间"],
+      ["Agent ID", "名称", "类型", "关注点", "领域", "Skill", "创建时间"],
       (agentResp.items || []).map((item) => [
         item.agent_id,
         item.name,
+        item.category || "-",
         item.focus,
         item.domain_id || "-",
         (item.skill_ids || []).join(", "),
@@ -622,6 +700,7 @@ async function initConfigPage() {
         default_query: agentQueryInput.value.trim(),
         domain_id: agentDomainSelect.value,
         agent_id: agentIdInput.value.trim() || undefined,
+        category: agentCategorySelect.value || "",
         skill_ids: selectedSkills,
       };
       await fetchJSON("/api/config/agents", {
@@ -634,6 +713,7 @@ async function initConfigPage() {
       agentDescInput.value = "";
       agentQueryInput.value = "";
       agentIdInput.value = "";
+      agentCategorySelect.value = "";
       Array.from(document.querySelectorAll("input[name='agentSkills']")).forEach((el) => {
         el.checked = false;
       });

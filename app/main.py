@@ -171,6 +171,7 @@ def create_custom_agent(request_body: CreateAgentRequest) -> JSONResponse:
             skill_ids=request_body.skill_ids,
             domain_id=request_body.domain_id,
             agent_id=request_body.agent_id,
+            category=request_body.category,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

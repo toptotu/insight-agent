@@ -9,9 +9,24 @@
         "path": "data/6g/standards.jsonl"
       },
       {
+        "id": "conference_agenda",
+        "label": "行业会议议题",
+        "path": "data/6g/conference_agenda.jsonl"
+      },
+      {
+        "id": "papers",
+        "label": "论文与期刊",
+        "path": "data/6g/papers.jsonl"
+      },
+      {
         "id": "whitepapers",
         "label": "厂商白皮书",
         "path": "data/6g/whitepapers.jsonl"
+      },
+      {
+        "id": "vendor_releases",
+        "label": "厂商发布",
+        "path": "data/6g/vendor_releases.jsonl"
       },
       {
         "id": "security_papers",
@@ -21,14 +36,23 @@
     ],
     "default_agents": [
       "standards_agent",
+      "conference_agent",
+      "paper_agent",
       "whitepaper_agent",
-      "security_paper_agent"
+      "vendor_release_agent",
+      "security_analysis_agent",
+      "verification_agent",
+      "report_agent"
     ],
     "default_skills": [
       "evidence_chain",
+      "source_collection",
+      "comparison",
+      "trend_synthesis",
       "risk_identification",
       "capability_verification",
-      "comparison"
+      "verification_plan",
+      "report_outline"
     ]
   }
 }

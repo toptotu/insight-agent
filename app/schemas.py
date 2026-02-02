@@ -30,6 +30,7 @@ class CreateAgentRequest(BaseModel):
     description: str = Field("", max_length=500)
     default_query: str = Field("", max_length=300)
     skill_ids: List[str] = []
+    category: str = Field("", max_length=100)
     domain_id: str = Field("", max_length=120)
 
 

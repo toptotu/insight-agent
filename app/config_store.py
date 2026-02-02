@@ -48,6 +48,7 @@ class ConfigStore:
                     description TEXT,
                     default_query TEXT,
                     skill_ids TEXT,
+                    category TEXT,
                     domain_id TEXT,
                     created_at INTEGER NOT NULL
                 )
@@ -77,6 +78,14 @@ class ConfigStore:
                 """
             )
             conn.commit()
+        self._ensure_agent_category_column()
+
+    def _ensure_agent_category_column(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            columns = [row[1] for row in conn.execute("PRAGMA table_info(custom_agents)").fetchall()]
+            if "category" not in columns:
+                conn.execute("ALTER TABLE custom_agents ADD COLUMN category TEXT")
+                conn.commit()
 
     def list_domains(self) -> List[Dict[str, Any]]:
         with self._lock, sqlite3.connect(self.db_path) as conn:
@@ -116,7 +125,7 @@ class ConfigStore:
         with self._lock, sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
                 """
-                SELECT agent_id, name, focus, description, default_query, skill_ids, domain_id, created_at
+                SELECT agent_id, name, focus, description, default_query, skill_ids, category, domain_id, created_at
                 FROM custom_agents
                 ORDER BY created_at DESC
                 """
@@ -132,8 +141,9 @@ class ConfigStore:
                     "description": row[3] or "",
                     "default_query": row[4] or "",
                     "skill_ids": skill_ids,
-                    "domain_id": row[6] or "",
-                    "created_at": row[7],
+                    "category": row[6] or "",
+                    "domain_id": row[7] or "",
+                    "created_at": row[8],
                 }
             )
         return agents
@@ -147,6 +157,7 @@ class ConfigStore:
         skill_ids: List[str],
         domain_id: str = "",
         agent_id: Optional[str] = None,
+        category: str = "",
     ) -> Dict[str, Any]:
         now = int(time.time())
         if not agent_id:
@@ -162,10 +173,10 @@ class ConfigStore:
             conn.execute(
                 """
                 INSERT INTO custom_agents
-                (agent_id, name, focus, description, default_query, skill_ids, domain_id, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (agent_id, name, focus, description, default_query, skill_ids, category, domain_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (agent_id, name, focus, description, default_query, payload, domain_id, now),
+                (agent_id, name, focus, description, default_query, payload, category, domain_id, now),
             )
             conn.commit()
         return {
@@ -175,6 +186,7 @@ class ConfigStore:
             "description": description,
             "default_query": default_query,
             "skill_ids": skill_ids,
+            "category": category,
             "domain_id": domain_id,
             "created_at": now,
         }

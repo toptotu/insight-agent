@@ -42,7 +42,16 @@ def load_skill_configs(
     return skills
 
 
-BUILTIN_SKILLS = {"evidence_chain", "comparison", "risk_identification", "capability_verification"}
+BUILTIN_SKILLS = {
+    "evidence_chain",
+    "source_collection",
+    "comparison",
+    "trend_synthesis",
+    "risk_identification",
+    "capability_verification",
+    "verification_plan",
+    "report_outline",
+}
 
 
 CAPABILITY_RULES = {
@@ -73,12 +82,20 @@ def apply_skills(
     outputs: Dict[str, object] = {}
     if "evidence_chain" in skill_ids:
         outputs["evidence_chain"] = build_evidence_chain(agent_results)
+    if "source_collection" in skill_ids:
+        outputs["source_collection"] = build_source_collection(agent_results)
     if "comparison" in skill_ids:
         outputs["comparison"] = build_comparison(agent_results)
+    if "trend_synthesis" in skill_ids:
+        outputs["trend_synthesis"] = build_trend_synthesis(agent_results)
     if "risk_identification" in skill_ids:
         outputs["risk_identification"] = identify_risks(agent_results)
     if "capability_verification" in skill_ids:
         outputs["capability_verification"] = build_capability_report(agent_results)
+    if "verification_plan" in skill_ids:
+        outputs["verification_plan"] = build_verification_plan(outputs.get("capability_verification"))
+    if "report_outline" in skill_ids:
+        outputs["report_outline"] = build_report_outline(agent_results)
     custom_skill_ids = [skill_id for skill_id in skill_ids if skill_id not in BUILTIN_SKILLS]
     if custom_skill_ids:
         custom_items = []
@@ -112,6 +129,39 @@ def build_comparison(agent_results: List[Dict[str, object]]) -> Dict[str, object
     return {
         "common_keywords": common_keywords,
         "observation": "不同来源普遍关注的关键词集合。",
+    }
+
+
+def build_trend_synthesis(agent_results: List[Dict[str, object]]) -> Dict[str, object]:
+    keyword_counter = Counter()
+    for result in agent_results:
+        tokens = _tokenize(str(result.get("summary", "")))
+        keyword_counter.update(tokens)
+    trending = [word for word, count in keyword_counter.most_common(12) if count > 1]
+    return {
+        "trending_keywords": trending,
+        "insight": "多源洞察中的热点趋势关键词。",
+    }
+
+
+def build_source_collection(agent_results: List[Dict[str, object]]) -> Dict[str, object]:
+    source_types = Counter()
+    source_titles = []
+    for result in agent_results:
+        for item in result.get("evidence", []):
+            source_types.update([item.get("source_type", "unknown")])
+            source_titles.append(item.get("title", ""))
+    recommended_sources = [
+        "3GPP/ITU/ETSI标准",
+        "行业会议(MWC/IEEE/ACM)",
+        "顶会论文与期刊",
+        "厂商白皮书/发布会",
+        "产业联盟与政策报告",
+    ]
+    return {
+        "source_type_counts": dict(source_types),
+        "evidence_titles": [title for title in source_titles if title][:6],
+        "recommended_sources": recommended_sources,
     }
 
 
@@ -162,3 +212,27 @@ def build_capability_report(agent_results: List[Dict[str, object]]) -> Dict[str,
         "capabilities": capabilities,
         "summary": "基于洞察内容识别的安全验证能力清单。",
     }
+
+
+def build_verification_plan(capability_report: Dict[str, object]) -> Dict[str, object]:
+    if not capability_report or "capabilities" not in capability_report:
+        return {"plan": ["补充能力识别后生成验证计划"]}
+    plan = ["阶段1：梳理验证范围与数据源", "阶段2：构建实验环境与基准", "阶段3：执行验证并评估结果"]
+    for capability in capability_report.get("capabilities", []):
+        methods = capability.get("verification_methods", [])
+        if methods:
+            plan.append(f"针对{capability.get('name')}：{methods[0]}")
+    return {"plan": plan[:6]}
+
+
+def build_report_outline(agent_results: List[Dict[str, object]]) -> Dict[str, object]:
+    outline = [
+        "1. 洞察目标与背景",
+        "2. 关键趋势与热点",
+        "3. 多源证据对比",
+        "4. 安全与验证能力识别",
+        "5. 风险与建议",
+        "6. 结论与下一步",
+    ]
+    agent_names = [result.get("agent_name") for result in agent_results]
+    return {"outline": outline, "contributors": agent_names}

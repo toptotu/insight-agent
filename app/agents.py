@@ -17,6 +17,7 @@ class AgentConfig:
     skill_ids: List[str]
     domain_id: str = ""
     origin: str = "builtin"
+    category: str = ""
 
 
 @dataclass
@@ -45,6 +46,7 @@ def load_agent_configs(
             skill_ids=entry.get("skill_ids", []),
             domain_id=entry.get("domain_id", ""),
             origin="builtin",
+            category=entry.get("category", ""),
         )
         agents[agent.agent_id] = agent
     if custom_agents:
@@ -58,6 +60,7 @@ def load_agent_configs(
                 skill_ids=list(entry.get("skill_ids") or []),
                 domain_id=str(entry.get("domain_id", "")),
                 origin="custom",
+                category=str(entry.get("category", "")),
             )
             agents[agent.agent_id] = agent
     return agents

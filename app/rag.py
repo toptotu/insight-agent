@@ -7,6 +7,16 @@ from typing import Dict, List, Optional, Tuple
 
 from app.config_store import ConfigStore
 
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover
+    np = None
+
+try:
+    import faiss
+except ImportError:  # pragma: no cover
+    faiss = None
+
 
 @dataclass
 class Document:
@@ -102,14 +112,65 @@ class SimpleRetriever:
         return scores[: max(1, top_k)]
 
 
+class FaissRetriever:
+    def __init__(self, documents: List[Document], dim: int = 256) -> None:
+        if np is None or faiss is None:
+            raise RuntimeError("FAISS or numpy is not available")
+        self.documents = documents
+        self.dim = dim
+        self.index = faiss.IndexFlatIP(dim)
+        self.doc_lookup: List[Document] = []
+        self._build_index()
+
+    def _embed(self, text: str) -> "np.ndarray":
+        tokens = _tokenize(text)
+        vector = np.zeros(self.dim, dtype="float32")
+        if not tokens:
+            return vector.reshape(1, -1)
+        for token in tokens:
+            idx = abs(hash(token)) % self.dim
+            vector[idx] += 1.0
+        norm = np.linalg.norm(vector)
+        if norm > 0:
+            vector /= norm
+        return vector.reshape(1, -1)
+
+    def _build_index(self) -> None:
+        for doc in self.documents:
+            vector = self._embed(f"{doc.title} {doc.content}")
+            self.index.add(vector)
+            self.doc_lookup.append(doc)
+
+    def search(self, query: str, top_k: int = 5, min_score: float = 0.1) -> List[Tuple[float, Document]]:
+        if not query or self.index.ntotal == 0:
+            return []
+        query_vector = self._embed(query)
+        scores, indices = self.index.search(query_vector, max(1, top_k))
+        results: List[Tuple[float, Document]] = []
+        for score, idx in zip(scores[0].tolist(), indices[0].tolist()):
+            if idx < 0:
+                continue
+            if score < min_score:
+                continue
+            results.append((float(score), self.doc_lookup[idx]))
+        return results
+
+
 class RAGStore:
     def __init__(self, base_dir: str, config_store: Optional[ConfigStore] = None) -> None:
         self.base_dir = base_dir
         self.config_store = config_store
         self.domains: Dict[str, DomainConfig] = {}
-        self._retrievers: Dict[str, SimpleRetriever] = {}
+        self._retrievers: Dict[str, object] = {}
         self._documents: Dict[str, List[Document]] = {}
         self._load_domains()
+        self._use_faiss = self._should_use_faiss()
+
+    def _should_use_faiss(self) -> bool:
+        flag = os.getenv("USE_FAISS", "1").lower()
+        if flag in {"0", "false", "no"}:
+            return False
+        return faiss is not None and np is not None
 
     def _load_domains(self) -> None:
         config_path = os.path.join(self.base_dir, "data", "domains.json")
@@ -211,10 +272,14 @@ class RAGStore:
         self._documents[domain_id] = documents
         return documents
 
-    def get_retriever(self, domain_id: str) -> SimpleRetriever:
+    def get_retriever(self, domain_id: str) -> object:
         if domain_id not in self._retrievers:
             documents = self.get_documents(domain_id)
-            self._retrievers[domain_id] = SimpleRetriever(documents)
+            if self._use_faiss:
+                dim = int(os.getenv("FAISS_DIM", "256"))
+                self._retrievers[domain_id] = FaissRetriever(documents, dim=dim)
+            else:
+                self._retrievers[domain_id] = SimpleRetriever(documents)
         return self._retrievers[domain_id]
 
     def invalidate(self, domain_id: str) -> None:

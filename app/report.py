@@ -40,5 +40,11 @@ def _build_summary_prompt(
         lines.append(f"风险识别：{skill_outputs.get('risk_identification')}")
     if "custom_skills" in skill_outputs:
         lines.append(f"自定义Skill：{skill_outputs.get('custom_skills')}")
+    if "trend_synthesis" in skill_outputs:
+        lines.append(f"趋势融合：{skill_outputs.get('trend_synthesis')}")
+    if "report_outline" in skill_outputs:
+        lines.append(f"报告大纲：{skill_outputs.get('report_outline')}")
+    if "verification_plan" in skill_outputs:
+        lines.append(f"验证计划：{skill_outputs.get('verification_plan')}")
     lines.append("请输出：洞察总结(不超过8条)，并突出关键能力。")
     return "\n".join(lines)

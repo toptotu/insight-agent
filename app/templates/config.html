@@ -81,6 +81,18 @@
       <input id="agentIdInput" type="text" placeholder="自定义ID，可不填" />
     </label>
   </div>
+  <div class="form-grid">
+    <label>
+      Agent类型
+      <select id="agentCategorySelect">
+        <option value="">未指定</option>
+        <option value="source">来源/爬取</option>
+        <option value="analysis">分析</option>
+        <option value="report">报告输出</option>
+        <option value="general">通用</option>
+      </select>
+    </label>
+  </div>
   <div>
     <h4>关联Skill</h4>
     <div id="agentSkillSelect" class="checkbox-group"></div>

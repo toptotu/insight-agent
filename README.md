@@ -39,3 +39,18 @@ export ALI_MODEL=qwen-plus
 - `data/6g/*.jsonl` contains sample documents for the 6G domain.
 
 Add new domains by extending `data/domains.json` and providing new JSONL files.
+
+## Custom configuration
+
+Use `/ui/config` to create custom domains, agents, skills, and RAG documents.
+Custom data is stored in `data/store.db`.
+
+## FAISS vector retrieval
+
+The platform uses FAISS if available (default) and falls back to the
+lightweight TF-like retriever if disabled.
+
+```bash
+export USE_FAISS=1
+export FAISS_DIM=256
+```

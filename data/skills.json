@@ -5,9 +5,19 @@
     "description": "将洞察结论与文档证据进行绑定"
   },
   {
+    "id": "source_collection",
+    "name": "洞察源采集计划",
+    "description": "给出行业通用的数据源与爬取计划建议"
+  },
+  {
     "id": "comparison",
     "name": "对比分析",
     "description": "跨来源对比关键观点与指标"
+  },
+  {
+    "id": "trend_synthesis",
+    "name": "趋势融合",
+    "description": "提炼多源洞察中的热点趋势与关键词"
   },
   {
     "id": "risk_identification",
@@ -18,5 +28,15 @@
     "id": "capability_verification",
     "name": "能力识别与验证",
     "description": "从洞察中识别安全能力并给出验证建议"
+  },
+  {
+    "id": "verification_plan",
+    "name": "验证计划",
+    "description": "输出验证能力的分阶段测试计划"
+  },
+  {
+    "id": "report_outline",
+    "name": "报告结构化输出",
+    "description": "生成洞察报告的结构化大纲"
   }
 ]

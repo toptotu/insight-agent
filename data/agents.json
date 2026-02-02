@@ -5,7 +5,26 @@
     "focus": "标准草案与技术规范",
     "description": "聚焦标准化组织的6G规范、愿景与指标",
     "default_query": "6G 标准 愿景 指标 架构 关键技术",
-    "skill_ids": ["evidence_chain", "comparison", "capability_verification"]
+    "skill_ids": ["evidence_chain", "source_collection", "comparison"],
+    "category": "source"
+  },
+  {
+    "id": "conference_agent",
+    "name": "行业会议议题Agent",
+    "focus": "业界大会与论坛议题",
+    "description": "聚焦MWC、IEEE等会议议题与趋势讨论",
+    "default_query": "6G 会议 议题 论坛 趋势",
+    "skill_ids": ["evidence_chain", "trend_synthesis", "comparison"],
+    "category": "source"
+  },
+  {
+    "id": "paper_agent",
+    "name": "论文洞察Agent",
+    "focus": "学术论文与期刊综述",
+    "description": "聚焦论文中的技术趋势、验证方法与挑战",
+    "default_query": "6G 论文 综述 关键技术 验证方法",
+    "skill_ids": ["evidence_chain", "trend_synthesis", "risk_identification"],
+    "category": "source"
   },
   {
     "id": "whitepaper_agent",
@@ -13,7 +32,17 @@
     "focus": "厂商路线图与技术方案",
     "description": "聚焦厂商白皮书中的路线图、架构与能力指标",
     "default_query": "6G 白皮书 路线图 关键能力 产业化",
-    "skill_ids": ["evidence_chain", "comparison", "risk_identification"]
+    "skill_ids": ["evidence_chain", "comparison", "risk_identification"],
+    "category": "source"
+  },
+  {
+    "id": "vendor_release_agent",
+    "name": "厂商发布Agent",
+    "focus": "厂商发布会与路线图",
+    "description": "聚焦厂商发布会、路线图与产品方向",
+    "default_query": "6G 发布会 路线图 产品 生态",
+    "skill_ids": ["evidence_chain", "comparison", "trend_synthesis"],
+    "category": "source"
   },
   {
     "id": "security_paper_agent",
@@ -21,6 +50,34 @@
     "focus": "安全架构与威胁模型",
     "description": "聚焦安全论文中的威胁、攻击面、验证方法",
     "default_query": "6G 安全 可信 零信任 隐私 抗攻击",
-    "skill_ids": ["evidence_chain", "risk_identification", "capability_verification"]
+    "skill_ids": ["evidence_chain", "risk_identification", "capability_verification"],
+    "category": "analysis"
+  },
+  {
+    "id": "security_analysis_agent",
+    "name": "安全技术洞察Agent",
+    "focus": "安全技术与威胁趋势",
+    "description": "综合标准、论文与产业内容输出安全洞察",
+    "default_query": "6G 安全 风险 验证 可信",
+    "skill_ids": ["risk_identification", "capability_verification", "trend_synthesis"],
+    "category": "analysis"
+  },
+  {
+    "id": "verification_agent",
+    "name": "安全验证能力识别Agent",
+    "focus": "验证方法与成熟度",
+    "description": "识别验证能力并输出验证计划",
+    "default_query": "验证 方法 成熟度 测试 评估",
+    "skill_ids": ["capability_verification", "verification_plan"],
+    "category": "analysis"
+  },
+  {
+    "id": "report_agent",
+    "name": "报告输出Agent",
+    "focus": "洞察报告结构化输出",
+    "description": "汇总洞察并生成报告大纲",
+    "default_query": "洞察 报告 总结 观点",
+    "skill_ids": ["report_outline"],
+    "category": "report"
   }
 ]
