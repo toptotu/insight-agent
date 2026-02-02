@@ -690,8 +690,8 @@ async function initInsightPage() {
 }
 
 async function initQuickInsightPage() {
-  const quickInput = document.getElementById("quickInputText");
-  if (!quickInput) {
+  const quickPrompt = document.getElementById("quickPromptText");
+  if (!quickPrompt) {
     return;
   }
   const quickTitleInput = document.getElementById("quickTitleInput");
@@ -709,7 +709,7 @@ async function initQuickInsightPage() {
       const payload = {
         title: quickTitleInput.value.trim(),
         objective: quickObjectiveInput.value.trim() || "快速洞察报告",
-        input_text: quickInput.value.trim(),
+        prompt: quickPrompt.value.trim(),
       };
       const response = await fetchJSON("/api/quick-insights", {
         method: "POST",
@@ -789,11 +789,56 @@ async function initQuickReportPage() {
     return;
   }
   const quickSlides = document.getElementById("quickSlides");
+  const quickEditToggle = document.getElementById("quickEditToggle");
+  const quickEditPanel = document.getElementById("quickEditPanel");
+  const quickEditTitle = document.getElementById("quickEditTitle");
+  const quickEditObjective = document.getElementById("quickEditObjective");
+  const quickEditSections = document.getElementById("quickEditSections");
+  const quickEditSave = document.getElementById("quickEditSave");
+  let currentReport = null;
   try {
     const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`);
+    currentReport = response;
     renderDynamicSlides(quickSlides, response.report_sections || [], response.objective);
+    if (quickEditTitle && quickEditObjective && quickEditSections) {
+      quickEditTitle.value = response.title || "";
+      quickEditObjective.value = response.objective || "";
+      quickEditSections.value = JSON.stringify(response.report_sections || [], null, 2);
+    }
   } catch (error) {
     quickSlides.textContent = `加载失败：${error.message}`;
+  }
+
+  if (quickEditToggle && quickEditPanel) {
+    quickEditToggle.addEventListener("click", () => {
+      const isHidden = quickEditPanel.style.display === "none";
+      quickEditPanel.style.display = isHidden ? "block" : "none";
+    });
+  }
+
+  if (quickEditSave) {
+    quickEditSave.addEventListener("click", async () => {
+      try {
+        const sections = quickEditSections.value.trim()
+          ? JSON.parse(quickEditSections.value.trim())
+          : [];
+        const payload = {
+          title: quickEditTitle.value.trim(),
+          objective: quickEditObjective.value.trim(),
+          report_sections: sections,
+        };
+        const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        currentReport = response;
+        renderDynamicSlides(quickSlides, response.report_sections || [], response.objective);
+        quickEditSections.value = JSON.stringify(response.report_sections || [], null, 2);
+      } catch (error) {
+        alert(`保存失败：${error.message}`);
+      }
+    });
   }
 }
 

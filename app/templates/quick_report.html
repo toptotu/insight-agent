@@ -1,6 +1,31 @@
 {% extends "base.html" %}
 
 {% block content %}
+<section class="panel">
+  <h2>快速洞察报告</h2>
+  <div class="actions">
+    <button id="quickEditToggle" class="button">编辑报告内容</button>
+  </div>
+  <div id="quickEditPanel" class="output" style="display:none;">
+    <div class="form-grid">
+      <label>
+        标题
+        <input id="quickEditTitle" type="text" />
+      </label>
+      <label>
+        目标
+        <input id="quickEditObjective" type="text" />
+      </label>
+    </div>
+    <label>
+      报告内容(JSON)
+      <textarea id="quickEditSections" rows="10"></textarea>
+    </label>
+    <div class="actions">
+      <button id="quickEditSave" class="button primary">保存修改</button>
+    </div>
+  </div>
+</section>
 <section class="ppt" id="quickSlides"></section>
 {% endblock %}
 

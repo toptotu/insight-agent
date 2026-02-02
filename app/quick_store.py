@@ -90,3 +90,18 @@ class QuickReportStore:
             conn.execute("DELETE FROM quick_reports WHERE report_id = ?", (report_id,))
             conn.commit()
         return True
+
+    def update_report(self, report_id: str, payload: Dict[str, Any], title: str = "") -> bool:
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM quick_reports WHERE report_id = ?",
+                (report_id,),
+            ).fetchone()
+            if not row:
+                return False
+            conn.execute(
+                "UPDATE quick_reports SET title = ?, payload = ? WHERE report_id = ?",
+                (title, json.dumps(payload, ensure_ascii=False), report_id),
+            )
+            conn.commit()
+        return True

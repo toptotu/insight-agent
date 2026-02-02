@@ -856,17 +856,18 @@ def run_all_crawlers() -> JSONResponse:
 
 @app.post("/api/quick-insights", response_class=JSONResponse)
 def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
-    input_text = str(payload.get("input_text", "")).strip()
-    if not input_text:
-        raise HTTPException(status_code=400, detail="input_text is required")
+    prompt = str(payload.get("prompt", "")).strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="prompt is required")
     title = str(payload.get("title", "")).strip()
     objective = str(payload.get("objective", "")).strip() or "快速洞察报告"
     llm = create_llm_client()
-    sections = build_quick_report_sections(input_text, objective, llm)
+    sections = build_quick_report_sections(prompt, objective, llm)
     summary = "\n".join(sections[0].get("bullets", []) if sections else [])
     report_payload = {
         "title": title,
         "objective": objective,
+        "prompt": prompt,
         "summary": summary,
         "report_sections": sections,
     }
@@ -896,6 +897,31 @@ def delete_quick_insight(report_id: str) -> JSONResponse:
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
     return JSONResponse({"status": "deleted"})
+
+
+@app.put("/api/quick-insights/{report_id}", response_class=JSONResponse)
+def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResponse:
+    report = quick_store.get_report(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    title = str(payload.get("title", report.get("title", ""))).strip()
+    objective = str(payload.get("objective", report.get("objective", ""))).strip()
+    report_sections = payload.get("report_sections", report.get("report_sections", []))
+    summary = str(payload.get("summary", "")).strip()
+    if not summary and report_sections:
+        first_bullets = report_sections[0].get("bullets", [])
+        summary = "\n".join(first_bullets[:5]) if isinstance(first_bullets, list) else ""
+    if not summary:
+        summary = str(report.get("summary", "")).strip()
+    updated_payload = {
+        **report,
+        "title": title,
+        "objective": objective,
+        "summary": summary,
+        "report_sections": report_sections,
+    }
+    quick_store.update_report(report_id, updated_payload, title=title)
+    return JSONResponse(updated_payload)
 
 
 @app.get("/api/config/report-templates/all", response_class=JSONResponse)
