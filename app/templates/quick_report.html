@@ -18,15 +18,19 @@
       </label>
     </div>
     <label>
-      报告内容(JSON)
-      <textarea id="quickEditSections" rows="10"></textarea>
+      提示词（只读）
+      <textarea id="quickEditPrompt" rows="4" readonly></textarea>
+    </label>
+    <label>
+      报告HTML内容
+      <textarea id="quickEditHtml" rows="12"></textarea>
     </label>
     <div class="actions">
       <button id="quickEditSave" class="button primary">保存修改</button>
     </div>
   </div>
 </section>
-<section class="ppt" id="quickSlides"></section>
+<iframe id="quickHtmlFrame" class="quick-frame"></iframe>
 {% endblock %}
 
 {% block scripts %}

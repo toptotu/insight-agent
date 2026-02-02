@@ -300,71 +300,60 @@ def _bullets_from_source(
     return []
 
 
-def build_quick_report_sections(
-    prompt: str, objective: str, llm: BaseLLMClient
-) -> List[Dict[str, object]]:
+def build_quick_html_report(prompt: str, objective: str, llm: BaseLLMClient) -> str:
     if llm.is_mock:
         bullets = _summary_to_bullets(prompt)
-        return [
-            {
-                "title": "洞察摘要",
-                "type": "summary",
-                "bullets": bullets[:5],
-            },
-            {
-                "title": "关键洞察",
-                "type": "insights",
-                "bullets": bullets[5:10] or bullets[:5],
-                "viewpoint": "启示观点：建议进一步补充证据与验证。",
-            },
-            {
-                "title": "结论与下一步",
-                "type": "closing",
-                "bullets": ["总结核心观点", "明确验证计划", "持续补充材料"],
-            },
-        ]
+        return _wrap_html(
+            objective,
+            [
+                ("洞察摘要", bullets[:5]),
+                ("关键洞察", bullets[5:10] or bullets[:5]),
+                ("结论与下一步", ["总结核心观点", "明确验证计划", "持续补充材料"]),
+            ],
+        )
     prompt_text = "\n".join(
         [
-            "你是洞察报告生成器，请输出PPT页要点。",
+            "请根据用户提示词输出PPT风格的HTML报告。",
+            "要求：",
+            "1) 输出完整HTML文档，包含<html><head><body>。",
+            "2) 仅输出HTML内容，不要额外说明。",
             f"洞察目标：{objective}",
-            "输出格式：",
-            "[SUMMARY]",
-            "- ...",
-            "[INSIGHTS]",
-            "- ...",
-            "[CONCLUSION]",
-            "- ...",
             "用户提示词：",
             prompt[:4000],
         ]
     )
-    text = llm.generate(prompt_text, max_tokens=400).text
-    sections = {"SUMMARY": [], "INSIGHTS": [], "CONCLUSION": []}
-    current = None
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("[SUMMARY]"):
-            current = "SUMMARY"
-            continue
-        if line.startswith("[INSIGHTS]"):
-            current = "INSIGHTS"
-            continue
-        if line.startswith("[CONCLUSION]"):
-            current = "CONCLUSION"
-            continue
-        if current:
-            cleaned = line.lstrip("-*0123456789. ").strip()
-            if cleaned:
-                sections[current].append(cleaned)
-    return [
-        {"title": "洞察摘要", "type": "summary", "bullets": sections["SUMMARY"][:6]},
-        {
-            "title": "关键洞察",
-            "type": "insights",
-            "bullets": sections["INSIGHTS"][:6],
-            "viewpoint": "启示观点：将洞察转化为验证与落地动作。",
-        },
-        {"title": "结论与下一步", "type": "closing", "bullets": sections["CONCLUSION"][:6]},
-    ]
+    html = llm.generate(prompt_text, max_tokens=900).text
+    html = html.strip()
+    if "<html" not in html.lower():
+        html = _wrap_html(objective, [("洞察摘要", _summary_to_bullets(html))])
+    return html
+
+
+def _wrap_html(title: str, sections: List[tuple]) -> str:
+    slides = []
+    for section_title, bullets in sections:
+        items = "".join(f"<li>{item}</li>" for item in bullets)
+        slides.append(
+            f"""
+            <section class="slide">
+              <h2>{section_title}</h2>
+              <ul>{items}</ul>
+            </section>
+            """
+        )
+    slides_html = "\n".join(slides)
+    return f"""<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8"/>
+    <title>{title or "快速洞察报告"}</title>
+    <style>
+      body {{ font-family: Arial, sans-serif; background: #f6f7fb; }}
+      .slide {{ background: #fff; margin: 24px auto; padding: 24px; width: 90%; max-width: 900px; border-radius: 12px; }}
+      h2 {{ margin-top: 0; }}
+    </style>
+  </head>
+  <body>
+    {slides_html}
+  </body>
+</html>"""

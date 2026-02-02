@@ -232,6 +232,14 @@ input[type="text"] {
   display: block;
 }
 
+.quick-frame {
+  width: 100%;
+  min-height: 720px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
 .flow-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

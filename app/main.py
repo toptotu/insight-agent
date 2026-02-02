@@ -14,7 +14,7 @@ from app.crawler import CrawlerService
 from app.file_ingest import SUPPORTED_EXTENSIONS, extract_text_from_upload
 from app.llm import create_llm_client
 from app.rag import RAGStore
-from app.report import build_insight_summary, build_quick_report_sections, build_report_sections
+from app.report import build_insight_summary, build_quick_html_report, build_report_sections
 from app.report_templates import BUILTIN_REPORT_TEMPLATES
 from app.quick_store import QuickReportStore
 from app.schemas import (
@@ -862,14 +862,14 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     title = str(payload.get("title", "")).strip()
     objective = str(payload.get("objective", "")).strip() or "快速洞察报告"
     llm = create_llm_client()
-    sections = build_quick_report_sections(prompt, objective, llm)
-    summary = "\n".join(sections[0].get("bullets", []) if sections else [])
+    html_content = build_quick_html_report(prompt, objective, llm)
+    summary = html_content[:200].replace("\n", " ")
     report_payload = {
         "title": title,
         "objective": objective,
         "prompt": prompt,
         "summary": summary,
-        "report_sections": sections,
+        "html_content": html_content,
     }
     report_id = quick_store.create_report(report_payload, title=title)
     report_payload.update({"report_id": report_id})
@@ -906,11 +906,10 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
         raise HTTPException(status_code=404, detail="Report not found")
     title = str(payload.get("title", report.get("title", ""))).strip()
     objective = str(payload.get("objective", report.get("objective", ""))).strip()
-    report_sections = payload.get("report_sections", report.get("report_sections", []))
+    html_content = str(payload.get("html_content", report.get("html_content", ""))).strip()
     summary = str(payload.get("summary", "")).strip()
-    if not summary and report_sections:
-        first_bullets = report_sections[0].get("bullets", [])
-        summary = "\n".join(first_bullets[:5]) if isinstance(first_bullets, list) else ""
+    if not summary and html_content:
+        summary = html_content[:200].replace("\n", " ")
     if not summary:
         summary = str(report.get("summary", "")).strip()
     updated_payload = {
@@ -918,7 +917,7 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
         "title": title,
         "objective": objective,
         "summary": summary,
-        "report_sections": report_sections,
+        "html_content": html_content,
     }
     quick_store.update_report(report_id, updated_payload, title=title)
     return JSONResponse(updated_payload)

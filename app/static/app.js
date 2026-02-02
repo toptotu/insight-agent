@@ -717,7 +717,7 @@ async function initQuickInsightPage() {
         body: JSON.stringify(payload),
       });
       quickResultMeta.innerHTML = `报告ID：${response.report_id} | <a href="/ui/quick-report/${response.report_id}" target="_blank">打开报告</a>`;
-      renderBulletList(quickResultSummary, response.summary || "");
+      quickResultSummary.textContent = response.summary || "已生成报告。";
     } catch (error) {
       quickResultSummary.textContent = `生成失败：${error.message}`;
     } finally {
@@ -788,25 +788,33 @@ async function initQuickReportPage() {
   if (!window.__QUICK_REPORT_ID__) {
     return;
   }
-  const quickSlides = document.getElementById("quickSlides");
+  const quickFrame = document.getElementById("quickHtmlFrame");
   const quickEditToggle = document.getElementById("quickEditToggle");
   const quickEditPanel = document.getElementById("quickEditPanel");
   const quickEditTitle = document.getElementById("quickEditTitle");
   const quickEditObjective = document.getElementById("quickEditObjective");
-  const quickEditSections = document.getElementById("quickEditSections");
+  const quickEditPrompt = document.getElementById("quickEditPrompt");
+  const quickEditHtml = document.getElementById("quickEditHtml");
   const quickEditSave = document.getElementById("quickEditSave");
   let currentReport = null;
   try {
     const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`);
     currentReport = response;
-    renderDynamicSlides(quickSlides, response.report_sections || [], response.objective);
-    if (quickEditTitle && quickEditObjective && quickEditSections) {
+    if (quickFrame) {
+      quickFrame.srcdoc = response.html_content || "";
+    }
+    if (quickEditTitle && quickEditObjective && quickEditHtml) {
       quickEditTitle.value = response.title || "";
       quickEditObjective.value = response.objective || "";
-      quickEditSections.value = JSON.stringify(response.report_sections || [], null, 2);
+      if (quickEditPrompt) {
+        quickEditPrompt.value = response.prompt || "";
+      }
+      quickEditHtml.value = response.html_content || "";
     }
   } catch (error) {
-    quickSlides.textContent = `加载失败：${error.message}`;
+    if (quickFrame) {
+      quickFrame.srcdoc = `加载失败：${error.message}`;
+    }
   }
 
   if (quickEditToggle && quickEditPanel) {
@@ -819,13 +827,10 @@ async function initQuickReportPage() {
   if (quickEditSave) {
     quickEditSave.addEventListener("click", async () => {
       try {
-        const sections = quickEditSections.value.trim()
-          ? JSON.parse(quickEditSections.value.trim())
-          : [];
         const payload = {
           title: quickEditTitle.value.trim(),
           objective: quickEditObjective.value.trim(),
-          report_sections: sections,
+          html_content: quickEditHtml.value.trim(),
         };
         const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`, {
           method: "PUT",
@@ -833,8 +838,10 @@ async function initQuickReportPage() {
           body: JSON.stringify(payload),
         });
         currentReport = response;
-        renderDynamicSlides(quickSlides, response.report_sections || [], response.objective);
-        quickEditSections.value = JSON.stringify(response.report_sections || [], null, 2);
+        if (quickFrame) {
+          quickFrame.srcdoc = response.html_content || "";
+        }
+        quickEditHtml.value = response.html_content || "";
       } catch (error) {
         alert(`保存失败：${error.message}`);
       }

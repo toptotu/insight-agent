@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -68,6 +69,11 @@ class QuickReportStore:
         for row in rows:
             payload = json.loads(row[3])
             summary = payload.get("summary", "") or ""
+            if not summary:
+                html_content = payload.get("html_content", "") or ""
+                summary = _strip_html(html_content)[:120]
+            if not summary:
+                summary = payload.get("prompt", "")[:120]
             summary_line = summary.splitlines()[0] if summary else ""
             items.append(
                 {
@@ -90,6 +96,10 @@ class QuickReportStore:
             conn.execute("DELETE FROM quick_reports WHERE report_id = ?", (report_id,))
             conn.commit()
         return True
+
+
+def _strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text)
 
     def update_report(self, report_id: str, payload: Dict[str, Any], title: str = "") -> bool:
         with self._lock, sqlite3.connect(self.db_path) as conn:
