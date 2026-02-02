@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -15,3 +15,34 @@ class InsightRequest(BaseModel):
     agent_ids: List[str] = []
     skill_ids: List[str] = []
     rag_config: RAGConfig = RAGConfig()
+
+
+class CreateDomainRequest(BaseModel):
+    domain_id: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=120)
+    description: str = Field("", max_length=500)
+
+
+class CreateAgentRequest(BaseModel):
+    agent_id: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=120)
+    focus: str = Field("", max_length=200)
+    description: str = Field("", max_length=500)
+    default_query: str = Field("", max_length=300)
+    skill_ids: List[str] = []
+    domain_id: str = Field("", max_length=120)
+
+
+class CreateSkillRequest(BaseModel):
+    skill_id: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=120)
+    description: str = Field("", max_length=500)
+
+
+class CreateDocumentRequest(BaseModel):
+    doc_id: Optional[str] = None
+    domain_id: str = Field(..., min_length=1, max_length=120)
+    title: str = Field(..., min_length=1, max_length=200)
+    source: str = Field("", max_length=200)
+    source_type: str = Field("custom", max_length=120)
+    content: str = Field(..., min_length=1, max_length=5000)

@@ -5,6 +5,8 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from app.config_store import ConfigStore
+
 
 @dataclass
 class Document:
@@ -36,6 +38,7 @@ class DomainConfig:
     rag_sources: List[RAGSource]
     default_agents: List[str]
     default_skills: List[str]
+    origin: str = "builtin"
 
 
 def _tokenize(text: str) -> List[str]:
@@ -100,8 +103,9 @@ class SimpleRetriever:
 
 
 class RAGStore:
-    def __init__(self, base_dir: str) -> None:
+    def __init__(self, base_dir: str, config_store: Optional[ConfigStore] = None) -> None:
         self.base_dir = base_dir
+        self.config_store = config_store
         self.domains: Dict[str, DomainConfig] = {}
         self._retrievers: Dict[str, SimpleRetriever] = {}
         self._documents: Dict[str, List[Document]] = {}
@@ -123,42 +127,87 @@ class RAGStore:
                 rag_sources=sources,
                 default_agents=payload.get("default_agents", []),
                 default_skills=payload.get("default_skills", []),
+                origin="builtin",
             )
 
     def list_domains(self) -> List[DomainConfig]:
-        return list(self.domains.values())
+        domains = list(self.domains.values())
+        if self.config_store:
+            for entry in self.config_store.list_domains():
+                domains.append(
+                    DomainConfig(
+                        domain_id=entry["domain_id"],
+                        name=entry["name"],
+                        description=entry.get("description", ""),
+                        rag_sources=[RAGSource(source_id="custom", label="自定义知识", path="")],
+                        default_agents=[],
+                        default_skills=[],
+                        origin="custom",
+                    )
+                )
+        return domains
 
     def get_domain(self, domain_id: str) -> Optional[DomainConfig]:
-        return self.domains.get(domain_id)
+        domain = self.domains.get(domain_id)
+        if domain:
+            return domain
+        if self.config_store:
+            for entry in self.config_store.list_domains():
+                if entry["domain_id"] == domain_id:
+                    return DomainConfig(
+                        domain_id=entry["domain_id"],
+                        name=entry["name"],
+                        description=entry.get("description", ""),
+                        rag_sources=[RAGSource(source_id="custom", label="自定义知识", path="")],
+                        default_agents=[],
+                        default_skills=[],
+                        origin="custom",
+                    )
+        return None
 
     def get_documents(self, domain_id: str) -> List[Document]:
         if domain_id in self._documents:
             return self._documents[domain_id]
-        domain = self.domains.get(domain_id)
-        if not domain:
-            return []
         documents: List[Document] = []
-        for source in domain.rag_sources:
-            path = os.path.join(self.base_dir, source.path)
-            if not os.path.exists(path):
-                continue
-            with open(path, "r", encoding="utf-8") as handle:
-                for line in handle:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    payload = json.loads(line)
-                    documents.append(
-                        Document(
-                            doc_id=payload.get("id", ""),
-                            title=payload.get("title", ""),
-                            source=payload.get("source", ""),
-                            source_type=payload.get("source_type", source.source_id),
-                            content=payload.get("content", ""),
-                            domain_id=domain_id,
-                            source_id=source.source_id,
+        domain = self.domains.get(domain_id)
+        if domain:
+            for source in domain.rag_sources:
+                path = os.path.join(self.base_dir, source.path)
+                if not os.path.exists(path):
+                    continue
+                with open(path, "r", encoding="utf-8") as handle:
+                    for line in handle:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        payload = json.loads(line)
+                        documents.append(
+                            Document(
+                                doc_id=payload.get("id", ""),
+                                title=payload.get("title", ""),
+                                source=payload.get("source", ""),
+                                source_type=payload.get("source_type", source.source_id),
+                                content=payload.get("content", ""),
+                                domain_id=domain_id,
+                                source_id=source.source_id,
+                            )
                         )
+        if self.config_store:
+            for entry in self.config_store.list_documents(domain_id):
+                documents.append(
+                    Document(
+                        doc_id=entry.get("doc_id", ""),
+                        title=entry.get("title", ""),
+                        source=entry.get("source", ""),
+                        source_type=entry.get("source_type", "custom"),
+                        content=entry.get("content", ""),
+                        domain_id=domain_id,
+                        source_id="custom",
                     )
+                )
+        if not documents:
+            self._documents[domain_id] = []
+            return []
         self._documents[domain_id] = documents
         return documents
 
@@ -167,3 +216,9 @@ class RAGStore:
             documents = self.get_documents(domain_id)
             self._retrievers[domain_id] = SimpleRetriever(documents)
         return self._retrievers[domain_id]
+
+    def invalidate(self, domain_id: str) -> None:
+        if domain_id in self._retrievers:
+            self._retrievers.pop(domain_id, None)
+        if domain_id in self._documents:
+            self._documents.pop(domain_id, None)

@@ -13,6 +13,13 @@ bash scripts/run.sh
 
 Open http://localhost:8000 in your browser.
 
+## UI pages
+
+- `/ui/insight`: 洞察工作台
+- `/ui/report/{task_id}`: PPT风格洞察报告
+- `/ui/history`: 历史洞察列表
+- `/ui/config`: 自定义Agent/Skill/RAG配置
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.

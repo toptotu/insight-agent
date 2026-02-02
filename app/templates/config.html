@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="panel">
+  <h2>配置中心</h2>
+  <p class="meta">在界面中配置自定义领域、Agent、Skill与RAG知识内容。</p>
+  <div id="configMessage" class="meta"></div>
+</section>
+
+<section class="panel">
+  <h3>自定义领域</h3>
+  <div class="form-grid">
+    <label>
+      领域名称
+      <input id="domainNameInput" type="text" placeholder="例如：工业互联网" />
+    </label>
+    <label>
+      领域ID（可选）
+      <input id="domainIdInput" type="text" placeholder="自定义ID，可不填" />
+    </label>
+  </div>
+  <label>
+    描述
+    <textarea id="domainDescInput" rows="2" placeholder="领域描述"></textarea>
+  </label>
+  <div class="actions">
+    <button id="createDomainBtn" class="button primary">创建领域</button>
+  </div>
+  <div id="domainList" class="table"></div>
+</section>
+
+<section class="panel">
+  <h3>自定义Skill</h3>
+  <div class="form-grid">
+    <label>
+      Skill名称
+      <input id="skillNameInput" type="text" placeholder="例如：趋势融合分析" />
+    </label>
+    <label>
+      Skill ID（可选）
+      <input id="skillIdInput" type="text" placeholder="自定义ID，可不填" />
+    </label>
+  </div>
+  <label>
+    描述
+    <textarea id="skillDescInput" rows="2" placeholder="Skill描述"></textarea>
+  </label>
+  <div class="actions">
+    <button id="createSkillBtn" class="button primary">创建Skill</button>
+  </div>
+  <div id="skillList" class="table"></div>
+</section>
+
+<section class="panel">
+  <h3>自定义Agent</h3>
+  <div class="form-grid">
+    <label>
+      Agent名称
+      <input id="agentNameInput" type="text" placeholder="例如：行业案例Agent" />
+    </label>
+    <label>
+      关注点
+      <input id="agentFocusInput" type="text" placeholder="关注点描述" />
+    </label>
+  </div>
+  <label>
+    描述
+    <textarea id="agentDescInput" rows="2" placeholder="Agent描述"></textarea>
+  </label>
+  <label>
+    默认查询词
+    <textarea id="agentQueryInput" rows="2" placeholder="例如：6G 行业 应用 场景"></textarea>
+  </label>
+  <div class="form-grid">
+    <label>
+      归属领域
+      <select id="agentDomainSelect"></select>
+    </label>
+    <label>
+      Agent ID（可选）
+      <input id="agentIdInput" type="text" placeholder="自定义ID，可不填" />
+    </label>
+  </div>
+  <div>
+    <h4>关联Skill</h4>
+    <div id="agentSkillSelect" class="checkbox-group"></div>
+  </div>
+  <div class="actions">
+    <button id="createAgentBtn" class="button primary">创建Agent</button>
+  </div>
+  <div id="agentList" class="table"></div>
+</section>
+
+<section class="panel">
+  <h3>RAG知识录入</h3>
+  <div class="form-grid">
+    <label>
+      领域选择
+      <select id="docDomainSelect"></select>
+    </label>
+    <label>
+      来源类型
+      <input id="docSourceTypeInput" type="text" placeholder="standard/whitepaper/paper/custom" />
+    </label>
+  </div>
+  <div class="form-grid">
+    <label>
+      标题
+      <input id="docTitleInput" type="text" placeholder="文档标题" />
+    </label>
+    <label>
+      来源
+      <input id="docSourceInput" type="text" placeholder="来源机构或会议" />
+    </label>
+  </div>
+  <label>
+    内容
+    <textarea id="docContentInput" rows="4" placeholder="文档内容摘要"></textarea>
+  </label>
+  <div class="actions">
+    <button id="createDocBtn" class="button primary">保存RAG文档</button>
+  </div>
+  <div id="docList" class="table"></div>
+</section>
+{% endblock %}

@@ -2,7 +2,7 @@ import json
 import os
 from collections import Counter, defaultdict
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from app.rag import _tokenize
 
@@ -12,9 +12,12 @@ class SkillConfig:
     skill_id: str
     name: str
     description: str
+    origin: str = "builtin"
 
 
-def load_skill_configs(base_dir: str) -> Dict[str, SkillConfig]:
+def load_skill_configs(
+    base_dir: str, custom_skills: Optional[List[Dict[str, object]]] = None
+) -> Dict[str, SkillConfig]:
     config_path = os.path.join(base_dir, "data", "skills.json")
     with open(config_path, "r", encoding="utf-8") as handle:
         raw = json.load(handle)
@@ -24,9 +27,22 @@ def load_skill_configs(base_dir: str) -> Dict[str, SkillConfig]:
             skill_id=entry["id"],
             name=entry.get("name", entry["id"]),
             description=entry.get("description", ""),
+            origin="builtin",
         )
         skills[skill.skill_id] = skill
+    if custom_skills:
+        for entry in custom_skills:
+            skill = SkillConfig(
+                skill_id=str(entry.get("skill_id", "")),
+                name=str(entry.get("name", "")),
+                description=str(entry.get("description", "")),
+                origin="custom",
+            )
+            skills[skill.skill_id] = skill
     return skills
+
+
+BUILTIN_SKILLS = {"evidence_chain", "comparison", "risk_identification", "capability_verification"}
 
 
 CAPABILITY_RULES = {
@@ -49,7 +65,11 @@ CAPABILITY_RULES = {
 }
 
 
-def apply_skills(skill_ids: List[str], agent_results: List[Dict[str, object]]) -> Dict[str, object]:
+def apply_skills(
+    skill_ids: List[str],
+    agent_results: List[Dict[str, object]],
+    skill_catalog: Optional[Dict[str, SkillConfig]] = None,
+) -> Dict[str, object]:
     outputs: Dict[str, object] = {}
     if "evidence_chain" in skill_ids:
         outputs["evidence_chain"] = build_evidence_chain(agent_results)
@@ -59,6 +79,20 @@ def apply_skills(skill_ids: List[str], agent_results: List[Dict[str, object]]) -
         outputs["risk_identification"] = identify_risks(agent_results)
     if "capability_verification" in skill_ids:
         outputs["capability_verification"] = build_capability_report(agent_results)
+    custom_skill_ids = [skill_id for skill_id in skill_ids if skill_id not in BUILTIN_SKILLS]
+    if custom_skill_ids:
+        custom_items = []
+        for skill_id in custom_skill_ids:
+            config = skill_catalog.get(skill_id) if skill_catalog else None
+            custom_items.append(
+                {
+                    "skill_id": skill_id,
+                    "name": config.name if config else skill_id,
+                    "description": config.description if config else "",
+                    "note": "自定义Skill已选择，建议结合人工或扩展逻辑使用。",
+                }
+            )
+        outputs["custom_skills"] = custom_items
     return outputs
 
 

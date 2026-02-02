@@ -1,7 +1,7 @@
 import json
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from app.llm import BaseLLMClient
 from app.rag import Document, RAGStore
@@ -15,6 +15,8 @@ class AgentConfig:
     description: str
     default_query: str
     skill_ids: List[str]
+    domain_id: str = ""
+    origin: str = "builtin"
 
 
 @dataclass
@@ -26,7 +28,9 @@ class AgentResult:
     evidence: List[Dict[str, str]]
 
 
-def load_agent_configs(base_dir: str) -> Dict[str, AgentConfig]:
+def load_agent_configs(
+    base_dir: str, custom_agents: Optional[List[Dict[str, object]]] = None
+) -> Dict[str, AgentConfig]:
     config_path = os.path.join(base_dir, "data", "agents.json")
     with open(config_path, "r", encoding="utf-8") as handle:
         raw = json.load(handle)
@@ -39,8 +43,23 @@ def load_agent_configs(base_dir: str) -> Dict[str, AgentConfig]:
             description=entry.get("description", ""),
             default_query=entry.get("default_query", ""),
             skill_ids=entry.get("skill_ids", []),
+            domain_id=entry.get("domain_id", ""),
+            origin="builtin",
         )
         agents[agent.agent_id] = agent
+    if custom_agents:
+        for entry in custom_agents:
+            agent = AgentConfig(
+                agent_id=str(entry.get("agent_id", "")),
+                name=str(entry.get("name", "")),
+                focus=str(entry.get("focus", "")),
+                description=str(entry.get("description", "")),
+                default_query=str(entry.get("default_query", "")),
+                skill_ids=list(entry.get("skill_ids") or []),
+                domain_id=str(entry.get("domain_id", "")),
+                origin="custom",
+            )
+            agents[agent.agent_id] = agent
     return agents
 
 
@@ -117,13 +136,14 @@ def run_agents(
     llm: BaseLLMClient,
     top_k: int,
     min_score: float,
-    base_dir: str,
+    agent_catalog: Dict[str, AgentConfig],
 ) -> List[AgentResult]:
-    configs = load_agent_configs(base_dir)
     results: List[AgentResult] = []
     for agent_id in agent_ids:
-        config = configs.get(agent_id)
+        config = agent_catalog.get(agent_id)
         if not config:
+            continue
+        if config.domain_id and config.domain_id != domain_id:
             continue
         agent = InsightAgent(config)
         results.append(agent.run(domain_id, objective, rag_store, llm, top_k, min_score))

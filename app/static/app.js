@@ -7,6 +7,14 @@ async function fetchJSON(url, options) {
   return response.json();
 }
 
+function formatDate(epochSeconds) {
+  if (!epochSeconds) {
+    return "";
+  }
+  const date = new Date(epochSeconds * 1000);
+  return date.toLocaleString();
+}
+
 function createCheckbox(id, label, groupName, checked) {
   const wrapper = document.createElement("label");
   wrapper.className = "checkbox-inline";
@@ -22,7 +30,17 @@ function createCheckbox(id, label, groupName, checked) {
   return wrapper;
 }
 
+function createTag(label) {
+  const tag = document.createElement("span");
+  tag.className = "tag";
+  tag.textContent = label;
+  return tag;
+}
+
 function renderCapabilityReport(container, report) {
+  if (!container) {
+    return;
+  }
   if (!report || !report.capabilities) {
     container.textContent = "未生成能力识别报告。";
     return;
@@ -42,7 +60,25 @@ function renderCapabilityReport(container, report) {
   container.textContent = lines.join("\n");
 }
 
+function renderCustomSkills(container, customSkills) {
+  if (!container) {
+    return;
+  }
+  if (!customSkills || !customSkills.length) {
+    container.textContent = "";
+    return;
+  }
+  const lines = ["自定义Skill提示："];
+  customSkills.forEach((skill) => {
+    lines.push(`- ${skill.name}: ${skill.description || "自定义Skill"}`);
+  });
+  container.textContent = lines.join("\n");
+}
+
 function renderEvidence(container, evidenceChain) {
+  if (!container) {
+    return;
+  }
   if (!evidenceChain) {
     container.textContent = "未生成证据链。";
     return;
@@ -58,6 +94,9 @@ function renderEvidence(container, evidenceChain) {
 }
 
 function renderAgentResults(container, agentResults) {
+  if (!container) {
+    return;
+  }
   if (!agentResults || !agentResults.length) {
     container.textContent = "暂无Agent结果。";
     return;
@@ -69,6 +108,128 @@ function renderAgentResults(container, agentResults) {
     lines.push("");
   });
   container.textContent = lines.join("\n");
+}
+
+function renderSummaryCards(container, summaryText) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!summaryText) {
+    return;
+  }
+  const lines = summaryText
+    .split("\n")
+    .map((line) => line.replace(/^[-*\d\.\s]+/, "").trim())
+    .filter((line) => line.length > 0);
+  lines.slice(0, 6).forEach((line) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const text = document.createElement("p");
+    text.textContent = line;
+    card.appendChild(text);
+    container.appendChild(card);
+  });
+}
+
+function renderViewpoints(container, comparison) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!comparison || !comparison.common_keywords) {
+    container.textContent = "暂无关键词热点。";
+    return;
+  }
+  comparison.common_keywords.forEach((keyword) => {
+    container.appendChild(createTag(keyword));
+  });
+}
+
+function renderBarChart(container, labels, values) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!labels.length) {
+    container.textContent = "暂无数据";
+    return;
+  }
+  const max = Math.max(...values, 1);
+  labels.forEach((label, index) => {
+    const row = document.createElement("div");
+    row.className = "chart-row";
+    const caption = document.createElement("div");
+    caption.className = "chart-label";
+    caption.textContent = label;
+    const barWrap = document.createElement("div");
+    barWrap.className = "chart-bar-wrap";
+    const bar = document.createElement("div");
+    bar.className = "chart-bar";
+    bar.style.width = `${(values[index] / max) * 100}%`;
+    const value = document.createElement("span");
+    value.className = "chart-value";
+    value.textContent = String(values[index]);
+    barWrap.appendChild(bar);
+    barWrap.appendChild(value);
+    row.appendChild(caption);
+    row.appendChild(barWrap);
+    container.appendChild(row);
+  });
+}
+
+function renderHistoryTable(container, items) {
+  if (!container) {
+    return;
+  }
+  if (!items || !items.length) {
+    container.textContent = "暂无历史任务。";
+    return;
+  }
+  const header = `
+    <div class="table-row table-header">
+      <div>时间</div>
+      <div>领域</div>
+      <div>目标</div>
+      <div>LLM</div>
+      <div>摘要</div>
+      <div>操作</div>
+    </div>
+  `;
+  const rows = items
+    .map(
+      (item) => `
+      <div class="table-row">
+        <div>${formatDate(item.created_at)}</div>
+        <div>${item.domain_name || item.domain_id}</div>
+        <div>${item.objective}</div>
+        <div>${item.llm_mode}</div>
+        <div>${item.summary_line}</div>
+        <div><a href="/ui/report/${item.task_id}" target="_blank">打开报告</a></div>
+      </div>
+    `
+    )
+    .join("");
+  container.innerHTML = header + rows;
+}
+
+function renderSimpleTable(container, headers, rows) {
+  if (!container) {
+    return;
+  }
+  if (!rows.length) {
+    container.textContent = "暂无记录。";
+    return;
+  }
+  const headerCells = headers.map((h) => `<div>${h}</div>`).join("");
+  const header = `<div class="table-row table-header">${headerCells}</div>`;
+  const body = rows
+    .map((row) => {
+      const cells = row.map((value) => `<div>${value}</div>`).join("");
+      return `<div class="table-row">${cells}</div>`;
+    })
+    .join("");
+  container.innerHTML = header + body;
 }
 
 async function initInsightPage() {
@@ -98,26 +259,35 @@ async function initInsightPage() {
   domains.forEach((domain) => {
     const option = document.createElement("option");
     option.value = domain.domain_id;
-    option.textContent = domain.name;
+    option.textContent = domain.origin === "custom" ? `${domain.name}（自定义）` : domain.name;
     domainSelect.appendChild(option);
   });
 
-  function renderAgents(defaults) {
+  function renderAgents(defaults, domainId) {
     agentsContainer.innerHTML = "";
-    agents.forEach((agent) => {
-      const checked = defaults.includes(agent.agent_id);
-      agentsContainer.appendChild(
-        createCheckbox(agent.agent_id, `${agent.name} - ${agent.focus}`, "agents", checked)
-      );
-    });
+    agents
+      .filter((agent) => !agent.domain_id || agent.domain_id === domainId)
+      .forEach((agent) => {
+        const checked = defaults.includes(agent.agent_id);
+        const originLabel = agent.origin === "custom" ? "【自定义】" : "";
+        agentsContainer.appendChild(
+          createCheckbox(
+            agent.agent_id,
+            `${originLabel}${agent.name} - ${agent.focus}`,
+            "agents",
+            checked
+          )
+        );
+      });
   }
 
   function renderSkills(defaults) {
     skillsContainer.innerHTML = "";
     skills.forEach((skill) => {
       const checked = defaults.includes(skill.skill_id);
+      const originLabel = skill.origin === "custom" ? "【自定义】" : "";
       skillsContainer.appendChild(
-        createCheckbox(skill.skill_id, `${skill.name}`, "skills", checked)
+        createCheckbox(skill.skill_id, `${originLabel}${skill.name}`, "skills", checked)
       );
     });
   }
@@ -125,9 +295,14 @@ async function initInsightPage() {
   function updateDefaults() {
     const domainId = domainSelect.value;
     const domain = domains.find((item) => item.domain_id === domainId);
-    const defaultAgents = domain ? domain.default_agents : [];
+    let defaultAgents = domain ? domain.default_agents : [];
+    if ((!defaultAgents || !defaultAgents.length) && domain && domain.origin === "custom") {
+      defaultAgents = agents
+        .filter((agent) => agent.domain_id === domain.domain_id)
+        .map((agent) => agent.agent_id);
+    }
     const defaultSkills = domain ? domain.default_skills : [];
-    renderAgents(defaultAgents || []);
+    renderAgents(defaultAgents || [], domainId);
     renderSkills(defaultSkills || []);
   }
 
@@ -171,7 +346,7 @@ async function initInsightPage() {
       resultMeta.innerHTML = `任务ID：${response.task_id} | LLM模式：${response.llm_mode} | <a href="/ui/report/${response.task_id}" target="_blank">打开报告</a>`;
       resultSummary.textContent = response.insight_summary || "";
       renderCapabilityReport(resultCapabilities, response.capability_report);
-      renderEvidence(resultEvidence, response.skill_outputs.evidence_chain);
+      renderEvidence(resultEvidence, (response.skill_outputs || {}).evidence_chain);
     } catch (error) {
       resultSummary.textContent = `发生错误：${error.message}`;
     } finally {
@@ -186,24 +361,319 @@ async function initReportPage() {
     return;
   }
   const reportMeta = document.getElementById("reportMeta");
+  const reportObjective = document.getElementById("reportObjective");
+  const reportDate = document.getElementById("reportDate");
   const reportSummary = document.getElementById("reportSummary");
+  const reportSummaryCards = document.getElementById("reportSummaryCards");
+  const reportViewpoints = document.getElementById("reportViewpoints");
+  const reportComparison = document.getElementById("reportComparison");
+  const reportCapabilityChart = document.getElementById("reportCapabilityChart");
   const reportCapabilities = document.getElementById("reportCapabilities");
+  const reportCustomSkills = document.getElementById("reportCustomSkills");
+  const reportEvidenceChart = document.getElementById("reportEvidenceChart");
   const reportAgents = document.getElementById("reportAgents");
   const reportEvidence = document.getElementById("reportEvidence");
 
   try {
     const response = await fetchJSON(`/api/insights/${window.__REPORT_TASK_ID__}`);
+    const skillOutputs = response.skill_outputs || {};
     reportMeta.textContent = `领域：${response.domain.name} | LLM模式：${response.llm_mode}`;
+    reportObjective.textContent = response.objective || "洞察目标";
+    reportDate.textContent = response.created_at ? `生成时间：${formatDate(response.created_at)}` : "";
     reportSummary.textContent = response.insight_summary || "";
+    renderSummaryCards(reportSummaryCards, response.insight_summary || "");
+    renderViewpoints(reportViewpoints, skillOutputs.comparison);
+    reportComparison.textContent = skillOutputs.comparison
+      ? skillOutputs.comparison.observation
+      : "暂无对比分析。";
+
     renderCapabilityReport(reportCapabilities, response.capability_report);
+    renderCustomSkills(reportCustomSkills, skillOutputs.custom_skills);
+
+    const capabilityCounts = { 高: 0, 中: 0, 低: 0 };
+    (response.capability_report.capabilities || []).forEach((cap) => {
+      if (capabilityCounts[cap.maturity] !== undefined) {
+        capabilityCounts[cap.maturity] += 1;
+      }
+    });
+    renderBarChart(reportCapabilityChart, ["高", "中", "低"], [
+      capabilityCounts["高"],
+      capabilityCounts["中"],
+      capabilityCounts["低"],
+    ]);
+
+    const evidenceChain = skillOutputs.evidence_chain || {};
+    const agentNames = Object.keys(evidenceChain);
+    const evidenceCounts = agentNames.map((name) => evidenceChain[name].length || 0);
+    renderBarChart(reportEvidenceChart, agentNames, evidenceCounts);
+
     renderAgentResults(reportAgents, response.agent_results);
-    renderEvidence(reportEvidence, response.skill_outputs.evidence_chain);
+    renderEvidence(reportEvidence, evidenceChain);
   } catch (error) {
-    reportSummary.textContent = `加载失败：${error.message}`;
+    if (reportSummary) {
+      reportSummary.textContent = `加载失败：${error.message}`;
+    }
   }
+}
+
+async function initHistoryPage() {
+  const historyTable = document.getElementById("historyTable");
+  if (!historyTable) {
+    return;
+  }
+  try {
+    const response = await fetchJSON("/api/tasks?limit=50");
+    renderHistoryTable(historyTable, response.items || []);
+  } catch (error) {
+    historyTable.textContent = `加载失败：${error.message}`;
+  }
+}
+
+async function initConfigPage() {
+  const message = document.getElementById("configMessage");
+  if (!message) {
+    return;
+  }
+
+  const domainNameInput = document.getElementById("domainNameInput");
+  const domainIdInput = document.getElementById("domainIdInput");
+  const domainDescInput = document.getElementById("domainDescInput");
+  const createDomainBtn = document.getElementById("createDomainBtn");
+  const domainList = document.getElementById("domainList");
+
+  const skillNameInput = document.getElementById("skillNameInput");
+  const skillIdInput = document.getElementById("skillIdInput");
+  const skillDescInput = document.getElementById("skillDescInput");
+  const createSkillBtn = document.getElementById("createSkillBtn");
+  const skillList = document.getElementById("skillList");
+
+  const agentNameInput = document.getElementById("agentNameInput");
+  const agentFocusInput = document.getElementById("agentFocusInput");
+  const agentDescInput = document.getElementById("agentDescInput");
+  const agentQueryInput = document.getElementById("agentQueryInput");
+  const agentDomainSelect = document.getElementById("agentDomainSelect");
+  const agentIdInput = document.getElementById("agentIdInput");
+  const agentSkillSelect = document.getElementById("agentSkillSelect");
+  const createAgentBtn = document.getElementById("createAgentBtn");
+  const agentList = document.getElementById("agentList");
+
+  const docDomainSelect = document.getElementById("docDomainSelect");
+  const docSourceTypeInput = document.getElementById("docSourceTypeInput");
+  const docTitleInput = document.getElementById("docTitleInput");
+  const docSourceInput = document.getElementById("docSourceInput");
+  const docContentInput = document.getElementById("docContentInput");
+  const createDocBtn = document.getElementById("createDocBtn");
+  const docList = document.getElementById("docList");
+
+  let meta = await fetchJSON("/api/meta");
+  let domains = meta.domains || [];
+  let skills = meta.skills || [];
+
+  function populateDomainSelect(select) {
+    select.innerHTML = "";
+    domains.forEach((domain) => {
+      const option = document.createElement("option");
+      option.value = domain.domain_id;
+      option.textContent = domain.origin === "custom" ? `${domain.name}（自定义）` : domain.name;
+      select.appendChild(option);
+    });
+  }
+
+  function populateSkillCheckboxes() {
+    agentSkillSelect.innerHTML = "";
+    skills.forEach((skill) => {
+      const label = skill.origin === "custom" ? `【自定义】${skill.name}` : skill.name;
+      agentSkillSelect.appendChild(createCheckbox(skill.skill_id, label, "agentSkills", false));
+    });
+  }
+
+  async function refreshMeta() {
+    meta = await fetchJSON("/api/meta");
+    domains = meta.domains || [];
+    skills = meta.skills || [];
+    populateDomainSelect(agentDomainSelect);
+    populateDomainSelect(docDomainSelect);
+    populateSkillCheckboxes();
+  }
+
+  function showMessage(text) {
+    message.textContent = text;
+    setTimeout(() => {
+      message.textContent = "";
+    }, 3000);
+  }
+
+  async function refreshLists() {
+    const [domainResp, skillResp, agentResp, docResp] = await Promise.all([
+      fetchJSON("/api/config/domains"),
+      fetchJSON("/api/config/skills"),
+      fetchJSON("/api/config/agents"),
+      fetchJSON("/api/config/documents"),
+    ]);
+
+    renderSimpleTable(
+      domainList,
+      ["领域ID", "名称", "描述", "创建时间"],
+      (domainResp.items || []).map((item) => [
+        item.domain_id,
+        item.name,
+        item.description,
+        formatDate(item.created_at),
+      ])
+    );
+
+    renderSimpleTable(
+      skillList,
+      ["Skill ID", "名称", "描述", "创建时间"],
+      (skillResp.items || []).map((item) => [
+        item.skill_id,
+        item.name,
+        item.description,
+        formatDate(item.created_at),
+      ])
+    );
+
+    renderSimpleTable(
+      agentList,
+      ["Agent ID", "名称", "关注点", "领域", "Skill", "创建时间"],
+      (agentResp.items || []).map((item) => [
+        item.agent_id,
+        item.name,
+        item.focus,
+        item.domain_id || "-",
+        (item.skill_ids || []).join(", "),
+        formatDate(item.created_at),
+      ])
+    );
+
+    renderSimpleTable(
+      docList,
+      ["文档ID", "领域", "标题", "来源类型", "创建时间"],
+      (docResp.items || []).map((item) => [
+        item.doc_id,
+        item.domain_id,
+        item.title,
+        item.source_type,
+        formatDate(item.created_at),
+      ])
+    );
+  }
+
+  populateDomainSelect(agentDomainSelect);
+  populateDomainSelect(docDomainSelect);
+  populateSkillCheckboxes();
+  await refreshLists();
+
+  createDomainBtn.addEventListener("click", async () => {
+    try {
+      const payload = {
+        name: domainNameInput.value.trim(),
+        description: domainDescInput.value.trim(),
+        domain_id: domainIdInput.value.trim() || undefined,
+      };
+      await fetchJSON("/api/config/domains", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      domainNameInput.value = "";
+      domainIdInput.value = "";
+      domainDescInput.value = "";
+      showMessage("自定义领域已创建");
+      await refreshMeta();
+      await refreshLists();
+    } catch (error) {
+      showMessage(`创建领域失败：${error.message}`);
+    }
+  });
+
+  createSkillBtn.addEventListener("click", async () => {
+    try {
+      const payload = {
+        name: skillNameInput.value.trim(),
+        description: skillDescInput.value.trim(),
+        skill_id: skillIdInput.value.trim() || undefined,
+      };
+      await fetchJSON("/api/config/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      skillNameInput.value = "";
+      skillIdInput.value = "";
+      skillDescInput.value = "";
+      showMessage("自定义Skill已创建");
+      await refreshMeta();
+      await refreshLists();
+    } catch (error) {
+      showMessage(`创建Skill失败：${error.message}`);
+    }
+  });
+
+  createAgentBtn.addEventListener("click", async () => {
+    try {
+      const selectedSkills = Array.from(
+        document.querySelectorAll("input[name='agentSkills']:checked")
+      ).map((input) => input.value);
+      const payload = {
+        name: agentNameInput.value.trim(),
+        focus: agentFocusInput.value.trim(),
+        description: agentDescInput.value.trim(),
+        default_query: agentQueryInput.value.trim(),
+        domain_id: agentDomainSelect.value,
+        agent_id: agentIdInput.value.trim() || undefined,
+        skill_ids: selectedSkills,
+      };
+      await fetchJSON("/api/config/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      agentNameInput.value = "";
+      agentFocusInput.value = "";
+      agentDescInput.value = "";
+      agentQueryInput.value = "";
+      agentIdInput.value = "";
+      Array.from(document.querySelectorAll("input[name='agentSkills']")).forEach((el) => {
+        el.checked = false;
+      });
+      showMessage("自定义Agent已创建");
+      await refreshMeta();
+      await refreshLists();
+    } catch (error) {
+      showMessage(`创建Agent失败：${error.message}`);
+    }
+  });
+
+  createDocBtn.addEventListener("click", async () => {
+    try {
+      const payload = {
+        domain_id: docDomainSelect.value,
+        title: docTitleInput.value.trim(),
+        source: docSourceInput.value.trim(),
+        source_type: docSourceTypeInput.value.trim() || "custom",
+        content: docContentInput.value.trim(),
+      };
+      await fetchJSON("/api/config/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      docTitleInput.value = "";
+      docSourceInput.value = "";
+      docSourceTypeInput.value = "";
+      docContentInput.value = "";
+      showMessage("RAG文档已保存");
+      await refreshLists();
+    } catch (error) {
+      showMessage(`保存文档失败：${error.message}`);
+    }
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   initInsightPage();
   initReportPage();
+  initHistoryPage();
+  initConfigPage();
 });

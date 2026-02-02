@@ -4,7 +4,7 @@ import sqlite3
 import threading
 import time
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class TaskStore:
@@ -52,3 +52,34 @@ class TaskStore:
         payload = json.loads(row[3])
         payload.update({"task_id": row[0], "created_at": row[1], "status": row[2]})
         return payload
+
+    def list_tasks(self, limit: int = 20) -> List[Dict[str, Any]]:
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """
+                SELECT task_id, created_at, status, payload
+                FROM tasks
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        items: List[Dict[str, Any]] = []
+        for row in rows:
+            payload = json.loads(row[3])
+            domain = payload.get("domain", {})
+            summary = payload.get("insight_summary", "") or ""
+            summary_line = summary.splitlines()[0] if summary else ""
+            items.append(
+                {
+                    "task_id": row[0],
+                    "created_at": row[1],
+                    "status": row[2],
+                    "objective": payload.get("objective", ""),
+                    "domain_name": domain.get("name", ""),
+                    "domain_id": domain.get("domain_id", ""),
+                    "llm_mode": payload.get("llm_mode", ""),
+                    "summary_line": summary_line,
+                }
+            )
+        return items

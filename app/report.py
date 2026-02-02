@@ -17,6 +17,10 @@ def build_insight_summary(
                 lines.append("风险提示：")
                 for risk in risks[:3]:
                     lines.append(f"- {risk}")
+        if "custom_skills" in skill_outputs:
+            lines.append("自定义Skill：")
+            for skill in skill_outputs.get("custom_skills", []):
+                lines.append(f"- {skill.get('name')}: {skill.get('description')}")
         return "\n".join(lines)
     prompt = _build_summary_prompt(objective, agent_results, skill_outputs)
     return llm.generate(prompt, max_tokens=480).text
@@ -34,5 +38,7 @@ def _build_summary_prompt(
         lines.append(f"- {result.get('agent_name')}：{result.get('summary')}")
     if "risk_identification" in skill_outputs:
         lines.append(f"风险识别：{skill_outputs.get('risk_identification')}")
+    if "custom_skills" in skill_outputs:
+        lines.append(f"自定义Skill：{skill_outputs.get('custom_skills')}")
     lines.append("请输出：洞察总结(不超过8条)，并突出关键能力。")
     return "\n".join(lines)
