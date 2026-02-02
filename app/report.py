@@ -253,6 +253,10 @@ def _bullets_from_source(
         trend = skill_outputs.get("trend_synthesis", {})
         if isinstance(trend, dict):
             return [f"热点：{item}" for item in trend.get("trending_keywords", [])]
+    if source_key == "proposal_focus":
+        proposal = skill_outputs.get("proposal_focus", {})
+        if isinstance(proposal, dict):
+            return list(proposal.get("proposal_focus", []))
     if source_key == "comparison":
         comparison = skill_outputs.get("comparison", {})
         if isinstance(comparison, dict):

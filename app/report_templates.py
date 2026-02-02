@@ -20,7 +20,7 @@ BUILTIN_REPORT_TEMPLATES: List[Dict[str, object]] = [
                 "title": "技术洞察",
                 "type": "tech",
                 "per_topic": True,
-                "source": "trend_synthesis",
+                "source": "proposal_focus",
                 "viewpoint_template": "启示：优先验证{topic}相关安全能力与标准对齐。",
                 "instruction": "每类技术单独一页，包含一句启示观点。",
             },

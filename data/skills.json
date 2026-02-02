@@ -48,6 +48,18 @@
     "example_output": "太赫兹、AI原生、空天地一体为热点"
   },
   {
+    "id": "proposal_focus",
+    "name": "关键提案关注点",
+    "description": "从洞察结果中抽取标准/提案关注点",
+    "category": "extract",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["proposal_focus"],
+    "prompt_template": "",
+    "tags": ["Claude-Extract", "proposal"],
+    "example_output": "标准提案聚焦零信任、隐私计算、抗干扰验证"
+  },
+  {
     "id": "risk_identification",
     "name": "风险识别",
     "description": "识别潜在风险、漏洞或矛盾",

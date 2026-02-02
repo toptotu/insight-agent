@@ -75,6 +75,7 @@ BUILTIN_SKILLS = {
     "source_collection",
     "comparison",
     "trend_synthesis",
+    "proposal_focus",
     "risk_identification",
     "capability_verification",
     "verification_plan",
@@ -116,6 +117,8 @@ def apply_skills(
         outputs["comparison"] = build_comparison(agent_results)
     if "trend_synthesis" in skill_ids:
         outputs["trend_synthesis"] = build_trend_synthesis(agent_results)
+    if "proposal_focus" in skill_ids:
+        outputs["proposal_focus"] = build_proposal_focus(agent_results)
     if "risk_identification" in skill_ids:
         outputs["risk_identification"] = identify_risks(agent_results)
     if "capability_verification" in skill_ids:
@@ -174,6 +177,26 @@ def build_trend_synthesis(agent_results: List[Dict[str, object]]) -> Dict[str, o
         "trending_keywords": trending,
         "insight": "多源洞察中的热点趋势关键词。",
     }
+
+
+def build_proposal_focus(agent_results: List[Dict[str, object]]) -> Dict[str, object]:
+    keywords = ["提案", "建议", "关注", "重点", "主张", "路线图", "里程碑"]
+    focus_lines: List[str] = []
+    for result in agent_results:
+        summary = str(result.get("summary", ""))
+        for line in summary.splitlines():
+            clean = line.strip().lstrip("-*0123456789. ")
+            if not clean:
+                continue
+            if any(key in clean for key in keywords):
+                focus_lines.append(f"{result.get('agent_name')}: {clean}")
+    if not focus_lines:
+        for result in agent_results:
+            summary = str(result.get("summary", ""))
+            first_line = summary.splitlines()[0] if summary else ""
+            if first_line:
+                focus_lines.append(f"{result.get('agent_name')}: {first_line}")
+    return {"proposal_focus": focus_lines[:8], "note": "关键提案关注点集合。"}
 
 
 def build_source_collection(agent_results: List[Dict[str, object]]) -> Dict[str, object]:
