@@ -859,19 +859,17 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     prompt = str(payload.get("prompt", "")).strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt is required")
-    title = str(payload.get("title", "")).strip()
-    objective = str(payload.get("objective", "")).strip() or "快速洞察报告"
     llm = create_llm_client()
-    html_content = build_quick_html_report(prompt, objective, llm)
+    html_content = build_quick_html_report(prompt, llm)
     summary = html_content[:200].replace("\n", " ")
     report_payload = {
-        "title": title,
-        "objective": objective,
+        "title": "",
+        "objective": "",
         "prompt": prompt,
         "summary": summary,
         "html_content": html_content,
     }
-    report_id = quick_store.create_report(report_payload, title=title)
+    report_id = quick_store.create_report(report_payload, title="")
     report_payload.update({"report_id": report_id})
     return JSONResponse(report_payload)
 
@@ -904,8 +902,6 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
     report = quick_store.get_report(report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    title = str(payload.get("title", report.get("title", ""))).strip()
-    objective = str(payload.get("objective", report.get("objective", ""))).strip()
     html_content = str(payload.get("html_content", report.get("html_content", ""))).strip()
     summary = str(payload.get("summary", "")).strip()
     if not summary and html_content:
@@ -914,12 +910,12 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
         summary = str(report.get("summary", "")).strip()
     updated_payload = {
         **report,
-        "title": title,
-        "objective": objective,
+        "title": report.get("title", ""),
+        "objective": report.get("objective", ""),
         "summary": summary,
         "html_content": html_content,
     }
-    quick_store.update_report(report_id, updated_payload, title=title)
+    quick_store.update_report(report_id, updated_payload, title=str(report.get("title", "")))
     return JSONResponse(updated_payload)
 
 

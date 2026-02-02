@@ -694,8 +694,6 @@ async function initQuickInsightPage() {
   if (!quickPrompt) {
     return;
   }
-  const quickTitleInput = document.getElementById("quickTitleInput");
-  const quickObjectiveInput = document.getElementById("quickObjectiveInput");
   const quickRunBtn = document.getElementById("quickRunBtn");
   const quickResultMeta = document.getElementById("quickResultMeta");
   const quickResultSummary = document.getElementById("quickResultSummary");
@@ -707,8 +705,6 @@ async function initQuickInsightPage() {
     quickResultSummary.textContent = "";
     try {
       const payload = {
-        title: quickTitleInput.value.trim(),
-        objective: quickObjectiveInput.value.trim() || "快速洞察报告",
         prompt: quickPrompt.value.trim(),
       };
       const response = await fetchJSON("/api/quick-insights", {
@@ -791,8 +787,6 @@ async function initQuickReportPage() {
   const quickFrame = document.getElementById("quickHtmlFrame");
   const quickEditToggle = document.getElementById("quickEditToggle");
   const quickEditPanel = document.getElementById("quickEditPanel");
-  const quickEditTitle = document.getElementById("quickEditTitle");
-  const quickEditObjective = document.getElementById("quickEditObjective");
   const quickEditPrompt = document.getElementById("quickEditPrompt");
   const quickEditHtml = document.getElementById("quickEditHtml");
   const quickEditSave = document.getElementById("quickEditSave");
@@ -803,9 +797,7 @@ async function initQuickReportPage() {
     if (quickFrame) {
       quickFrame.srcdoc = response.html_content || "";
     }
-    if (quickEditTitle && quickEditObjective && quickEditHtml) {
-      quickEditTitle.value = response.title || "";
-      quickEditObjective.value = response.objective || "";
+    if (quickEditHtml) {
       if (quickEditPrompt) {
         quickEditPrompt.value = response.prompt || "";
       }
@@ -828,8 +820,6 @@ async function initQuickReportPage() {
     quickEditSave.addEventListener("click", async () => {
       try {
         const payload = {
-          title: quickEditTitle.value.trim(),
-          objective: quickEditObjective.value.trim(),
           html_content: quickEditHtml.value.trim(),
         };
         const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`, {

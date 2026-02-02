@@ -3,20 +3,10 @@
 {% block content %}
 <section class="panel">
   <h2>快速洞察</h2>
-  <p class="meta">直接输入材料内容，生成PPT格式洞察报告。</p>
-  <div class="form-grid">
-    <label>
-      报告标题
-      <input id="quickTitleInput" type="text" placeholder="例如：6G标准安全洞察简报" />
-    </label>
-    <label>
-      洞察目标
-      <input id="quickObjectiveInput" type="text" placeholder="例如：输出关键洞察与结论" />
-    </label>
-  </div>
+  <p class="meta">输入给大模型的提示词，生成HTML洞察报告并保存。</p>
   <label>
     提示词（给大模型的指令）
-    <textarea id="quickPromptText" rows="8" placeholder="例如：基于以下内容生成PPT洞察摘要与结论..."></textarea>
+    <textarea id="quickPromptText" rows="8" placeholder="例如：洞察6g技术输出ppt格式html"></textarea>
   </label>
   <div class="actions">
     <button id="quickRunBtn" class="button primary">生成洞察报告</button>

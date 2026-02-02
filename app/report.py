@@ -300,33 +300,18 @@ def _bullets_from_source(
     return []
 
 
-def build_quick_html_report(prompt: str, objective: str, llm: BaseLLMClient) -> str:
+def build_quick_html_report(prompt: str, llm: BaseLLMClient) -> str:
     if llm.is_mock:
         bullets = _summary_to_bullets(prompt)
         return _wrap_html(
-            objective,
+            "快速洞察报告",
             [
                 ("洞察摘要", bullets[:5]),
                 ("关键洞察", bullets[5:10] or bullets[:5]),
                 ("结论与下一步", ["总结核心观点", "明确验证计划", "持续补充材料"]),
             ],
         )
-    prompt_text = "\n".join(
-        [
-            "请根据用户提示词输出PPT风格的HTML报告。",
-            "要求：",
-            "1) 输出完整HTML文档，包含<html><head><body>。",
-            "2) 仅输出HTML内容，不要额外说明。",
-            f"洞察目标：{objective}",
-            "用户提示词：",
-            prompt[:4000],
-        ]
-    )
-    html = llm.generate(prompt_text, max_tokens=900).text
-    html = html.strip()
-    if "<html" not in html.lower():
-        html = _wrap_html(objective, [("洞察摘要", _summary_to_bullets(html))])
-    return html
+    return llm.generate(prompt, max_tokens=1200).text.strip()
 
 
 def _wrap_html(title: str, sections: List[tuple]) -> str:
