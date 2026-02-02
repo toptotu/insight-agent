@@ -5,6 +5,25 @@
   <h2>配置中心</h2>
   <p class="meta">在界面中配置自定义领域、Agent、Skill与RAG知识内容。</p>
   <div id="configMessage" class="meta"></div>
+  <div class="output">
+    <strong>使用说明（含默认项修改）</strong>
+    <ul class="bullet-list">
+      <li>编辑默认项会生成覆盖配置（不修改原始文件）。</li>
+      <li>删除默认项会进行禁用，可在列表中点击“启用”恢复。</li>
+      <li>RAG文档支持新增、编辑、删除，支持覆盖内置文档。</li>
+    </ul>
+    <p>示例：创建Agent时选择“来源/分析/报告”类型，并关联对应Skill。</p>
+    <pre class="output">
+示例Skill:
+名称=趋势融合, 类别=summarize, 输入=agent_results, 输出=trending_keywords
+
+示例Agent:
+名称=标准抓取Agent, 类型=source, 默认查询=6G 标准 关键技术
+
+示例RAG文档:
+领域=6G安全洞察, 来源类型=standard, 标题=ITU 6G愿景草案摘要
+    </pre>
+  </div>
 </section>
 
 <section class="panel">
@@ -19,12 +38,23 @@
       <input id="domainIdInput" type="text" placeholder="自定义ID，可不填" />
     </label>
   </div>
+  <div class="form-grid">
+    <label>
+      默认Agent（逗号分隔）
+      <input id="domainDefaultAgents" type="text" placeholder="standards_agent, security_analysis_agent" />
+    </label>
+    <label>
+      默认Skill（逗号分隔）
+      <input id="domainDefaultSkills" type="text" placeholder="evidence_chain, trend_synthesis" />
+    </label>
+  </div>
   <label>
     描述
     <textarea id="domainDescInput" rows="2" placeholder="领域描述"></textarea>
   </label>
   <div class="actions">
     <button id="createDomainBtn" class="button primary">创建领域</button>
+    <button id="cancelDomainBtn" class="button">取消编辑</button>
   </div>
   <div id="domainList" class="table"></div>
 </section>
@@ -85,6 +115,7 @@
   </label>
   <div class="actions">
     <button id="createSkillBtn" class="button primary">创建Skill</button>
+    <button id="cancelSkillBtn" class="button">取消编辑</button>
   </div>
   <div id="skillList" class="table"></div>
 </section>
@@ -137,8 +168,37 @@
   </div>
   <div class="actions">
     <button id="createAgentBtn" class="button primary">创建Agent</button>
+    <button id="cancelAgentBtn" class="button">取消编辑</button>
   </div>
   <div id="agentList" class="table"></div>
+</section>
+
+<section class="panel">
+  <h3>报告模板配置</h3>
+  <p class="meta">可配置输出格式与内容要求（例如摘要页、技术洞察页、总结页）。</p>
+  <div class="form-grid">
+    <label>
+      模板名称
+      <input id="templateNameInput" type="text" placeholder="例如：6G安全洞察PPT模板" />
+    </label>
+    <label>
+      模板ID（可选）
+      <input id="templateIdInput" type="text" placeholder="自定义ID，可不填" />
+    </label>
+  </div>
+  <label>
+    描述
+    <textarea id="templateDescInput" rows="2" placeholder="模板说明"></textarea>
+  </label>
+  <label>
+    Sections(JSON)
+    <textarea id="templateSectionsInput" rows="6" placeholder='[{"title":"洞察摘要","type":"summary"},{"title":"技术洞察","type":"tech","per_topic":true},{"title":"总结与验证","type":"closing"}]'></textarea>
+  </label>
+  <div class="actions">
+    <button id="createTemplateBtn" class="button primary">保存模板</button>
+    <button id="cancelTemplateBtn" class="button">取消编辑</button>
+  </div>
+  <div id="templateList" class="table"></div>
 </section>
 
 <section class="panel">
@@ -169,7 +229,53 @@
   </label>
   <div class="actions">
     <button id="createDocBtn" class="button primary">保存RAG文档</button>
+    <button id="cancelDocBtn" class="button">取消编辑</button>
   </div>
   <div id="docList" class="table"></div>
+</section>
+
+<section class="panel">
+  <h3>信息源配置与自动爬取</h3>
+  <p class="meta">配置来源URL与抓取频率，系统将按周期自动抓取并写入RAG。</p>
+  <div class="form-grid">
+    <label>
+      来源名称
+      <input id="crawlerNameInput" type="text" placeholder="例如：3GPP Release 20公告" />
+    </label>
+    <label>
+      领域
+      <select id="crawlerDomainSelect"></select>
+    </label>
+  </div>
+  <div class="form-grid">
+    <label>
+      来源URL
+      <input id="crawlerUrlInput" type="text" placeholder="https://example.com" />
+    </label>
+    <label>
+      来源类型
+      <input id="crawlerSourceTypeInput" type="text" placeholder="standard/paper/whitepaper" />
+    </label>
+  </div>
+  <div class="form-grid">
+    <label>
+      抓取频率(分钟)
+      <input id="crawlerIntervalInput" type="number" min="1" max="10080" value="1440" />
+    </label>
+    <label class="checkbox-inline">
+      <input id="crawlerEnabledInput" type="checkbox" checked />
+      启用自动抓取
+    </label>
+  </div>
+  <label>
+    描述
+    <textarea id="crawlerDescInput" rows="2" placeholder="来源说明"></textarea>
+  </label>
+  <div class="actions">
+    <button id="createCrawlerBtn" class="button primary">保存来源</button>
+    <button id="cancelCrawlerBtn" class="button">取消编辑</button>
+    <button id="runAllCrawlerBtn" class="button">运行全部抓取</button>
+  </div>
+  <div id="crawlerList" class="table"></div>
 </section>
 {% endblock %}

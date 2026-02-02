@@ -192,25 +192,68 @@ class RAGStore:
             )
 
     def list_domains(self) -> List[DomainConfig]:
-        domains = list(self.domains.values())
+        domains: List[DomainConfig] = []
+        custom_domains: Dict[str, Dict[str, object]] = {}
+        disabled_ids: List[str] = []
         if self.config_store:
-            for entry in self.config_store.list_domains():
+            custom_domains = {entry["domain_id"]: entry for entry in self.config_store.list_domains()}
+            disabled_ids = self.config_store.get_disabled_ids("domain")
+        for domain_id, domain in self.domains.items():
+            if domain_id in disabled_ids:
+                continue
+            override = custom_domains.get(domain_id)
+            if override:
                 domains.append(
                     DomainConfig(
-                        domain_id=entry["domain_id"],
-                        name=entry["name"],
-                        description=entry.get("description", ""),
-                        rag_sources=[RAGSource(source_id="custom", label="自定义知识", path="")],
-                        default_agents=[],
-                        default_skills=[],
+                        domain_id=domain_id,
+                        name=str(override.get("name", domain.name)),
+                        description=str(override.get("description", domain.description)),
+                        rag_sources=domain.rag_sources,
+                        default_agents=list(override.get("default_agents") or domain.default_agents),
+                        default_skills=list(override.get("default_skills") or domain.default_skills),
                         origin="custom",
                     )
                 )
+            else:
+                domains.append(domain)
+        for entry in custom_domains.values():
+            domain_id = entry["domain_id"]
+            if domain_id in self.domains:
+                continue
+            if domain_id in disabled_ids:
+                continue
+            domains.append(
+                DomainConfig(
+                    domain_id=domain_id,
+                    name=entry["name"],
+                    description=entry.get("description", ""),
+                    rag_sources=[RAGSource(source_id="custom", label="自定义知识", path="")],
+                    default_agents=list(entry.get("default_agents") or []),
+                    default_skills=list(entry.get("default_skills") or []),
+                    origin="custom",
+                )
+            )
         return domains
 
     def get_domain(self, domain_id: str) -> Optional[DomainConfig]:
+        if self.config_store:
+            disabled_ids = self.config_store.get_disabled_ids("domain")
+            if domain_id in disabled_ids:
+                return None
         domain = self.domains.get(domain_id)
         if domain:
+            if self.config_store:
+                for entry in self.config_store.list_domains():
+                    if entry["domain_id"] == domain_id:
+                        return DomainConfig(
+                            domain_id=entry["domain_id"],
+                            name=entry.get("name", domain.name),
+                            description=entry.get("description", domain.description),
+                            rag_sources=domain.rag_sources,
+                            default_agents=list(entry.get("default_agents") or domain.default_agents),
+                            default_skills=list(entry.get("default_skills") or domain.default_skills),
+                            origin="custom",
+                        )
             return domain
         if self.config_store:
             for entry in self.config_store.list_domains():
@@ -220,8 +263,8 @@ class RAGStore:
                         name=entry["name"],
                         description=entry.get("description", ""),
                         rag_sources=[RAGSource(source_id="custom", label="自定义知识", path="")],
-                        default_agents=[],
-                        default_skills=[],
+                        default_agents=list(entry.get("default_agents") or []),
+                        default_skills=list(entry.get("default_skills") or []),
                         origin="custom",
                     )
         return None
@@ -229,7 +272,10 @@ class RAGStore:
     def get_documents(self, domain_id: str) -> List[Document]:
         if domain_id in self._documents:
             return self._documents[domain_id]
-        documents: List[Document] = []
+        documents_map: Dict[str, Document] = {}
+        disabled_docs: List[str] = []
+        if self.config_store:
+            disabled_docs = self.config_store.get_disabled_ids("document")
         domain = self.domains.get(domain_id)
         if domain:
             for source in domain.rag_sources:
@@ -242,30 +288,33 @@ class RAGStore:
                         if not line:
                             continue
                         payload = json.loads(line)
-                        documents.append(
-                            Document(
-                                doc_id=payload.get("id", ""),
-                                title=payload.get("title", ""),
-                                source=payload.get("source", ""),
-                                source_type=payload.get("source_type", source.source_id),
-                                content=payload.get("content", ""),
-                                domain_id=domain_id,
-                                source_id=source.source_id,
-                            )
+                        doc_id = payload.get("id", "")
+                        if doc_id in disabled_docs:
+                            continue
+                        documents_map[doc_id] = Document(
+                            doc_id=doc_id,
+                            title=payload.get("title", ""),
+                            source=payload.get("source", ""),
+                            source_type=payload.get("source_type", source.source_id),
+                            content=payload.get("content", ""),
+                            domain_id=domain_id,
+                            source_id=source.source_id,
                         )
         if self.config_store:
             for entry in self.config_store.list_documents(domain_id):
-                documents.append(
-                    Document(
-                        doc_id=entry.get("doc_id", ""),
-                        title=entry.get("title", ""),
-                        source=entry.get("source", ""),
-                        source_type=entry.get("source_type", "custom"),
-                        content=entry.get("content", ""),
-                        domain_id=domain_id,
-                        source_id="custom",
-                    )
+                doc_id = entry.get("doc_id", "")
+                if doc_id in disabled_docs:
+                    continue
+                documents_map[doc_id] = Document(
+                    doc_id=doc_id,
+                    title=entry.get("title", ""),
+                    source=entry.get("source", ""),
+                    source_type=entry.get("source_type", "custom"),
+                    content=entry.get("content", ""),
+                    domain_id=domain_id,
+                    source_id="custom",
                 )
+        documents = list(documents_map.values())
         if not documents:
             self._documents[domain_id] = []
             return []

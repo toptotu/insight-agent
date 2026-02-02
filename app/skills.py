@@ -23,13 +23,18 @@ class SkillConfig:
 
 
 def load_skill_configs(
-    base_dir: str, custom_skills: Optional[List[Dict[str, object]]] = None
+    base_dir: str,
+    custom_skills: Optional[List[Dict[str, object]]] = None,
+    disabled_ids: Optional[List[str]] = None,
 ) -> Dict[str, SkillConfig]:
     config_path = os.path.join(base_dir, "data", "skills.json")
     with open(config_path, "r", encoding="utf-8") as handle:
         raw = json.load(handle)
     skills: Dict[str, SkillConfig] = {}
+    disabled = set(disabled_ids or [])
     for entry in raw:
+        if entry.get("id") in disabled:
+            continue
         skill = SkillConfig(
             skill_id=entry["id"],
             name=entry.get("name", entry["id"]),
@@ -46,6 +51,8 @@ def load_skill_configs(
         skills[skill.skill_id] = skill
     if custom_skills:
         for entry in custom_skills:
+            if entry.get("skill_id") in disabled:
+                continue
             skill = SkillConfig(
                 skill_id=str(entry.get("skill_id", "")),
                 name=str(entry.get("name", "")),

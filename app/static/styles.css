@@ -125,6 +125,16 @@ input[type="text"] {
   color: #fff;
 }
 
+.button.action {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.button.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .output {
   background: #f8fafc;
   padding: 16px;

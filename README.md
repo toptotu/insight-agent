@@ -22,6 +22,29 @@ Open http://localhost:8000 in your browser.
 
 The report page renders charts via Chart.js (CDN).
 
+## Editing defaults and overrides
+
+- Editing a built-in item creates an override in the database.
+- Deleting a built-in item disables it (can be re-enabled from the list).
+- Custom items are stored in `data/store.db`.
+
+## Auto crawling sources
+
+Configure crawlers in `/ui/config` under "信息源配置与自动爬取".
+The service will fetch content on schedule and store it in the RAG store.
+
+Environment knobs:
+
+```bash
+export CRAWLER_CHECK_INTERVAL=60
+export CRAWLER_MAX_CHARS=5000
+```
+
+## Report templates
+
+Use `/ui/config` to manage PPT report templates. The insight page can select a
+template to control slide layout (summary, per-topic, closing, etc.).
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.

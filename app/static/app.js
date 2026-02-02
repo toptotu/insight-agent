@@ -231,6 +231,57 @@ function renderSourceCollection(container, collection) {
   container.textContent = lines.join("\n");
 }
 
+function renderDynamicSlides(container, sections, objective) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!sections || !sections.length) {
+    return;
+  }
+  const buildSlide = (title, bullets, extra, instruction) => {
+    const slide = document.createElement("div");
+    slide.className = "slide";
+    const header = document.createElement("div");
+    header.className = "slide-header";
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    header.appendChild(heading);
+    slide.appendChild(header);
+    const content = document.createElement("div");
+    content.className = "slide-content";
+    if (instruction) {
+      const note = document.createElement("div");
+      note.className = "meta";
+      note.textContent = instruction;
+      content.appendChild(note);
+    }
+    const list = document.createElement("ul");
+    list.className = "bullet-list";
+    (bullets || []).forEach((bullet) => {
+      const item = document.createElement("li");
+      item.textContent = bullet;
+      list.appendChild(item);
+    });
+    content.appendChild(list);
+    if (extra) {
+      const extraBlock = document.createElement("div");
+      extraBlock.className = "output";
+      extraBlock.textContent = extra;
+      content.appendChild(extraBlock);
+    }
+    slide.appendChild(content);
+    return slide;
+  };
+
+  sections.forEach((section, index) => {
+    const title = section.title || `PPT页面 ${index + 1}`;
+    const bullets = section.bullets || [];
+    const viewpoint = section.viewpoint ? `启示观点：${section.viewpoint}` : "";
+    container.appendChild(buildSlide(title, bullets, viewpoint, section.instruction));
+  });
+}
+
 function renderChart(container, config) {
   if (!container || !window.Chart || !(container instanceof HTMLCanvasElement)) {
     return false;
@@ -402,6 +453,25 @@ function renderSimpleTable(container, headers, rows) {
   container.innerHTML = header + body;
 }
 
+function renderConfigTable(container, headers, rows) {
+  if (!container) {
+    return;
+  }
+  if (!rows.length) {
+    container.textContent = "暂无记录。";
+    return;
+  }
+  const headerCells = headers.map((h) => `<div>${h}</div>`).join("");
+  const header = `<div class="table-row table-header">${headerCells}</div>`;
+  const body = rows
+    .map((row) => {
+      const cells = row.map((value) => `<div>${value}</div>`).join("");
+      return `<div class="table-row">${cells}</div>`;
+    })
+    .join("");
+  container.innerHTML = header + body;
+}
+
 async function initInsightPage() {
   const domainSelect = document.getElementById("domainSelect");
   if (!domainSelect) {
@@ -415,6 +485,7 @@ async function initInsightPage() {
   const topKInput = document.getElementById("topKInput");
   const minScoreInput = document.getElementById("minScoreInput");
   const rerankInput = document.getElementById("rerankInput");
+  const reportTemplateSelect = document.getElementById("reportTemplateSelect");
 
   const resultMeta = document.getElementById("resultMeta");
   const resultSummary = document.getElementById("resultSummary");
@@ -425,6 +496,7 @@ async function initInsightPage() {
   let domains = meta.domains || [];
   let agents = meta.agents || [];
   let skills = meta.skills || [];
+  let templates = meta.report_templates || [];
 
   domains.forEach((domain) => {
     const option = document.createElement("option");
@@ -432,6 +504,15 @@ async function initInsightPage() {
     option.textContent = domain.origin === "custom" ? `${domain.name}（自定义）` : domain.name;
     domainSelect.appendChild(option);
   });
+
+  if (reportTemplateSelect) {
+    templates.forEach((tpl) => {
+      const option = document.createElement("option");
+      option.value = tpl.template_id;
+      option.textContent = tpl.name;
+      reportTemplateSelect.appendChild(option);
+    });
+  }
 
   function renderAgents(defaults, domainId) {
     agentsContainer.innerHTML = "";
@@ -502,6 +583,7 @@ async function initInsightPage() {
         objective: objectiveInput.value || "6G技术洞察与安全验证能力分析",
         agent_ids: selectedAgents,
         skill_ids: selectedSkills,
+        report_template_id: reportTemplateSelect ? reportTemplateSelect.value : undefined,
         rag_config: {
           top_k: Number(topKInput.value) || 5,
           min_score: Number(minScoreInput.value) || 0.1,
@@ -532,6 +614,8 @@ async function initReportPage() {
   if (!window.__REPORT_TASK_ID__) {
     return;
   }
+  const dynamicSlides = document.getElementById("dynamicSlides");
+  const defaultSlides = document.getElementById("defaultSlides");
   const reportMeta = document.getElementById("reportMeta");
   const reportObjective = document.getElementById("reportObjective");
   const reportDate = document.getElementById("reportDate");
@@ -554,6 +638,12 @@ async function initReportPage() {
   try {
     const response = await fetchJSON(`/api/insights/${window.__REPORT_TASK_ID__}`);
     const skillOutputs = response.skill_outputs || {};
+    if (response.report_sections && response.report_sections.length) {
+      renderDynamicSlides(dynamicSlides, response.report_sections, response.objective);
+      if (defaultSlides) {
+        defaultSlides.style.display = "none";
+      }
+    }
     reportMeta.textContent = `领域：${response.domain.name} | LLM模式：${response.llm_mode}`;
     reportObjective.textContent = response.objective || "洞察目标";
     reportDate.textContent = response.created_at ? `生成时间：${formatDate(response.created_at)}` : "";
@@ -632,7 +722,10 @@ async function initConfigPage() {
   const domainNameInput = document.getElementById("domainNameInput");
   const domainIdInput = document.getElementById("domainIdInput");
   const domainDescInput = document.getElementById("domainDescInput");
+  const domainDefaultAgents = document.getElementById("domainDefaultAgents");
+  const domainDefaultSkills = document.getElementById("domainDefaultSkills");
   const createDomainBtn = document.getElementById("createDomainBtn");
+  const cancelDomainBtn = document.getElementById("cancelDomainBtn");
   const domainList = document.getElementById("domainList");
 
   const skillNameInput = document.getElementById("skillNameInput");
@@ -646,6 +739,7 @@ async function initConfigPage() {
   const skillTagsInput = document.getElementById("skillTagsInput");
   const skillExampleOutput = document.getElementById("skillExampleOutput");
   const createSkillBtn = document.getElementById("createSkillBtn");
+  const cancelSkillBtn = document.getElementById("cancelSkillBtn");
   const skillList = document.getElementById("skillList");
 
   const agentNameInput = document.getElementById("agentNameInput");
@@ -657,7 +751,28 @@ async function initConfigPage() {
   const agentSkillSelect = document.getElementById("agentSkillSelect");
   const agentCategorySelect = document.getElementById("agentCategorySelect");
   const createAgentBtn = document.getElementById("createAgentBtn");
+  const cancelAgentBtn = document.getElementById("cancelAgentBtn");
   const agentList = document.getElementById("agentList");
+
+  const templateNameInput = document.getElementById("templateNameInput");
+  const templateIdInput = document.getElementById("templateIdInput");
+  const templateDescInput = document.getElementById("templateDescInput");
+  const templateSectionsInput = document.getElementById("templateSectionsInput");
+  const createTemplateBtn = document.getElementById("createTemplateBtn");
+  const cancelTemplateBtn = document.getElementById("cancelTemplateBtn");
+  const templateList = document.getElementById("templateList");
+
+  const crawlerNameInput = document.getElementById("crawlerNameInput");
+  const crawlerDomainSelect = document.getElementById("crawlerDomainSelect");
+  const crawlerUrlInput = document.getElementById("crawlerUrlInput");
+  const crawlerSourceTypeInput = document.getElementById("crawlerSourceTypeInput");
+  const crawlerIntervalInput = document.getElementById("crawlerIntervalInput");
+  const crawlerEnabledInput = document.getElementById("crawlerEnabledInput");
+  const crawlerDescInput = document.getElementById("crawlerDescInput");
+  const createCrawlerBtn = document.getElementById("createCrawlerBtn");
+  const cancelCrawlerBtn = document.getElementById("cancelCrawlerBtn");
+  const runAllCrawlerBtn = document.getElementById("runAllCrawlerBtn");
+  const crawlerList = document.getElementById("crawlerList");
 
   const docDomainSelect = document.getElementById("docDomainSelect");
   const docSourceTypeInput = document.getElementById("docSourceTypeInput");
@@ -665,7 +780,16 @@ async function initConfigPage() {
   const docSourceInput = document.getElementById("docSourceInput");
   const docContentInput = document.getElementById("docContentInput");
   const createDocBtn = document.getElementById("createDocBtn");
+  const cancelDocBtn = document.getElementById("cancelDocBtn");
   const docList = document.getElementById("docList");
+
+  let editingDomainId = null;
+  let editingSkillId = null;
+  let editingAgentId = null;
+  let editingDocId = null;
+  let editingTemplateId = null;
+  let editingCrawlerId = null;
+  const configState = { domains: [], skills: [], agents: [], documents: [], templates: [], crawlers: [] };
 
   let meta = await fetchJSON("/api/meta");
   let domains = meta.domains || [];
@@ -695,6 +819,7 @@ async function initConfigPage() {
     skills = meta.skills || [];
     populateDomainSelect(agentDomainSelect);
     populateDomainSelect(docDomainSelect);
+    populateDomainSelect(crawlerDomainSelect);
     populateSkillCheckboxes();
   }
 
@@ -705,69 +830,347 @@ async function initConfigPage() {
     }, 3000);
   }
 
+  function resetDomainForm() {
+    editingDomainId = null;
+    domainNameInput.value = "";
+    domainIdInput.value = "";
+    domainIdInput.disabled = false;
+    domainDescInput.value = "";
+    domainDefaultAgents.value = "";
+    domainDefaultSkills.value = "";
+    createDomainBtn.textContent = "创建领域";
+  }
+
+  function startEditDomain(item) {
+    editingDomainId = item.domain_id;
+    domainNameInput.value = item.name || "";
+    domainIdInput.value = item.domain_id;
+    domainIdInput.disabled = true;
+    domainDescInput.value = item.description || "";
+    domainDefaultAgents.value = (item.default_agents || []).join(", ");
+    domainDefaultSkills.value = (item.default_skills || []).join(", ");
+    createDomainBtn.textContent = "保存修改";
+  }
+
+  function resetSkillForm() {
+    editingSkillId = null;
+    skillNameInput.value = "";
+    skillIdInput.value = "";
+    skillIdInput.disabled = false;
+    skillDescInput.value = "";
+    skillCategoryInput.value = "";
+    skillModeSelect.value = "";
+    skillInputFields.value = "";
+    skillOutputFields.value = "";
+    skillPromptTemplate.value = "";
+    skillTagsInput.value = "";
+    skillExampleOutput.value = "";
+    createSkillBtn.textContent = "创建Skill";
+  }
+
+  function startEditSkill(item) {
+    editingSkillId = item.skill_id;
+    skillNameInput.value = item.name || "";
+    skillIdInput.value = item.skill_id;
+    skillIdInput.disabled = true;
+    skillDescInput.value = item.description || "";
+    skillCategoryInput.value = item.category || "";
+    skillModeSelect.value = item.mode || "";
+    skillInputFields.value = (item.input_fields || []).join(", ");
+    skillOutputFields.value = (item.output_fields || []).join(", ");
+    skillPromptTemplate.value = item.prompt_template || "";
+    skillTagsInput.value = (item.tags || []).join(", ");
+    skillExampleOutput.value = item.example_output || "";
+    createSkillBtn.textContent = "保存修改";
+  }
+
+  function resetAgentForm() {
+    editingAgentId = null;
+    agentNameInput.value = "";
+    agentFocusInput.value = "";
+    agentDescInput.value = "";
+    agentQueryInput.value = "";
+    agentIdInput.value = "";
+    agentIdInput.disabled = false;
+    agentCategorySelect.value = "";
+    Array.from(document.querySelectorAll("input[name='agentSkills']")).forEach((el) => {
+      el.checked = false;
+    });
+    createAgentBtn.textContent = "创建Agent";
+  }
+
+  function startEditAgent(item) {
+    editingAgentId = item.agent_id;
+    agentNameInput.value = item.name || "";
+    agentFocusInput.value = item.focus || "";
+    agentDescInput.value = item.description || "";
+    agentQueryInput.value = item.default_query || "";
+    agentDomainSelect.value = item.domain_id || agentDomainSelect.value;
+    agentIdInput.value = item.agent_id;
+    agentIdInput.disabled = true;
+    agentCategorySelect.value = item.category || "";
+    Array.from(document.querySelectorAll("input[name='agentSkills']")).forEach((el) => {
+      el.checked = (item.skill_ids || []).includes(el.value);
+    });
+    createAgentBtn.textContent = "保存修改";
+  }
+
+  function resetDocForm() {
+    editingDocId = null;
+    docTitleInput.value = "";
+    docSourceInput.value = "";
+    docSourceTypeInput.value = "";
+    docContentInput.value = "";
+    createDocBtn.textContent = "保存RAG文档";
+  }
+
+  function startEditDoc(item) {
+    editingDocId = item.doc_id;
+    docDomainSelect.value = item.domain_id || docDomainSelect.value;
+    docTitleInput.value = item.title || "";
+    docSourceInput.value = item.source || "";
+    docSourceTypeInput.value = item.source_type || "";
+    docContentInput.value = item.content || "";
+    createDocBtn.textContent = "保存修改";
+  }
+
+  function resetTemplateForm() {
+    editingTemplateId = null;
+    templateNameInput.value = "";
+    templateIdInput.value = "";
+    templateIdInput.disabled = false;
+    templateDescInput.value = "";
+    templateSectionsInput.value = "";
+    createTemplateBtn.textContent = "保存模板";
+  }
+
+  function startEditTemplate(item) {
+    editingTemplateId = item.template_id;
+    templateNameInput.value = item.name || "";
+    templateIdInput.value = item.template_id;
+    templateIdInput.disabled = true;
+    templateDescInput.value = item.description || "";
+    templateSectionsInput.value = JSON.stringify(item.sections || [], null, 2);
+    createTemplateBtn.textContent = "保存修改";
+  }
+
+  function resetCrawlerForm() {
+    editingCrawlerId = null;
+    crawlerNameInput.value = "";
+    crawlerUrlInput.value = "";
+    crawlerSourceTypeInput.value = "";
+    crawlerIntervalInput.value = "1440";
+    crawlerEnabledInput.checked = true;
+    crawlerDescInput.value = "";
+    createCrawlerBtn.textContent = "保存来源";
+  }
+
+  function startEditCrawler(item) {
+    editingCrawlerId = item.source_id;
+    crawlerNameInput.value = item.name || "";
+    crawlerDomainSelect.value = item.domain_id || crawlerDomainSelect.value;
+    crawlerUrlInput.value = item.url || "";
+    crawlerSourceTypeInput.value = item.source_type || "";
+    crawlerIntervalInput.value = String(item.interval_minutes || 1440);
+    crawlerEnabledInput.checked = Boolean(item.enabled);
+    crawlerDescInput.value = item.description || "";
+    createCrawlerBtn.textContent = "保存修改";
+  }
+
   async function refreshLists() {
-    const [domainResp, skillResp, agentResp, docResp] = await Promise.all([
-      fetchJSON("/api/config/domains"),
-      fetchJSON("/api/config/skills"),
-      fetchJSON("/api/config/agents"),
-      fetchJSON("/api/config/documents"),
+    const [domainResp, skillResp, agentResp, docResp, templateResp, crawlerResp] = await Promise.all([
+      fetchJSON("/api/config/domains/all"),
+      fetchJSON("/api/config/skills/all"),
+      fetchJSON("/api/config/agents/all"),
+      fetchJSON("/api/config/documents/all"),
+      fetchJSON("/api/config/report-templates/all"),
+      fetchJSON("/api/config/crawlers"),
     ]);
 
-    renderSimpleTable(
+    configState.domains = domainResp.items || [];
+    configState.skills = skillResp.items || [];
+    configState.agents = agentResp.items || [];
+    configState.documents = docResp.items || [];
+    configState.templates = templateResp.items || [];
+    configState.crawlers = crawlerResp.items || [];
+
+    const renderActions = (type, id, disabled) => {
+      const edit = `<button class="button action" data-action="edit" data-type="${type}" data-id="${id}">编辑</button>`;
+      const remove = `<button class="button action danger" data-action="delete" data-type="${type}" data-id="${id}">删除</button>`;
+      const enable = `<button class="button action" data-action="enable" data-type="${type}" data-id="${id}">启用</button>`;
+      return disabled ? `${edit} ${enable}` : `${edit} ${remove}`;
+    };
+
+    renderConfigTable(
       domainList,
-      ["领域ID", "名称", "描述", "创建时间"],
-      (domainResp.items || []).map((item) => [
+      ["领域ID", "名称", "描述", "默认Agent", "默认Skill", "来源", "状态", "操作"],
+      configState.domains.map((item) => [
         item.domain_id,
         item.name,
-        item.description,
-        formatDate(item.created_at),
+        item.description || "",
+        (item.default_agents || []).join(", "),
+        (item.default_skills || []).join(", "),
+        item.origin === "builtin" ? "内置" : "自定义",
+        item.disabled ? "已禁用" : "启用中",
+        renderActions("domain", item.domain_id, item.disabled),
       ])
     );
 
-    renderSimpleTable(
+    renderConfigTable(
       skillList,
-      ["Skill ID", "名称", "类别", "模式", "标签", "描述"],
-      (skillResp.items || []).map((item) => [
+      ["Skill ID", "名称", "类别", "模式", "标签", "来源", "状态", "操作"],
+      configState.skills.map((item) => [
         item.skill_id,
         item.name,
         item.category || "-",
         item.mode || "-",
         (item.tags || []).join(", "),
-        item.description || "",
+        item.origin === "builtin" ? "内置" : "自定义",
+        item.disabled ? "已禁用" : "启用中",
+        renderActions("skill", item.skill_id, item.disabled),
       ])
     );
 
-    renderSimpleTable(
+    renderConfigTable(
       agentList,
-      ["Agent ID", "名称", "类型", "关注点", "领域", "Skill", "创建时间"],
-      (agentResp.items || []).map((item) => [
+      ["Agent ID", "名称", "类型", "领域", "Skill", "来源", "状态", "操作"],
+      configState.agents.map((item) => [
         item.agent_id,
         item.name,
         item.category || "-",
-        item.focus,
         item.domain_id || "-",
         (item.skill_ids || []).join(", "),
-        formatDate(item.created_at),
+        item.origin === "builtin" ? "内置" : "自定义",
+        item.disabled ? "已禁用" : "启用中",
+        renderActions("agent", item.agent_id, item.disabled),
       ])
     );
 
-    renderSimpleTable(
+    renderConfigTable(
       docList,
-      ["文档ID", "领域", "标题", "来源类型", "创建时间"],
-      (docResp.items || []).map((item) => [
+      ["文档ID", "领域", "标题", "来源类型", "来源", "来源渠道", "状态", "操作"],
+      configState.documents.map((item) => [
         item.doc_id,
         item.domain_id,
         item.title,
         item.source_type,
-        formatDate(item.created_at),
+        item.source || "-",
+        item.origin === "builtin" ? "内置" : "自定义",
+        item.disabled ? "已禁用" : "启用中",
+        renderActions("document", item.doc_id, item.disabled),
+      ])
+    );
+
+    renderConfigTable(
+      templateList,
+      ["模板ID", "名称", "描述", "来源", "状态", "操作"],
+      configState.templates.map((item) => [
+        item.template_id,
+        item.name,
+        item.description || "",
+        item.origin === "builtin" ? "内置" : "自定义",
+        item.disabled ? "已禁用" : "启用中",
+        renderActions("report-template", item.template_id, item.disabled),
+      ])
+    );
+
+    renderConfigTable(
+      crawlerList,
+      ["来源ID", "名称", "领域", "频率(分钟)", "启用", "最近状态", "操作"],
+      configState.crawlers.map((item) => [
+        item.source_id,
+        item.name,
+        item.domain_id,
+        item.interval_minutes,
+        item.enabled ? "是" : "否",
+        item.status || "-",
+        `<button class="button action" data-action="edit" data-type="crawler" data-id="${item.source_id}">编辑</button>
+         <button class="button action" data-action="run" data-type="crawler" data-id="${item.source_id}">立即抓取</button>
+         <button class="button action danger" data-action="delete" data-type="crawler" data-id="${item.source_id}">删除</button>`,
       ])
     );
   }
 
   populateDomainSelect(agentDomainSelect);
   populateDomainSelect(docDomainSelect);
+  populateDomainSelect(crawlerDomainSelect);
   populateSkillCheckboxes();
   await refreshLists();
+
+  async function handleAction(type, action, id) {
+    try {
+      if (action === "edit") {
+        if (type === "domain") {
+          const item = configState.domains.find((d) => d.domain_id === id);
+          if (item) startEditDomain(item);
+        }
+        if (type === "skill") {
+          const item = configState.skills.find((s) => s.skill_id === id);
+          if (item) startEditSkill(item);
+        }
+        if (type === "agent") {
+          const item = configState.agents.find((a) => a.agent_id === id);
+          if (item) startEditAgent(item);
+        }
+        if (type === "document") {
+          const item = configState.documents.find((d) => d.doc_id === id);
+          if (item) startEditDoc(item);
+        }
+        if (type === "report-template") {
+          const item = configState.templates.find((t) => t.template_id === id);
+          if (item) startEditTemplate(item);
+        }
+        if (type === "crawler") {
+          const item = configState.crawlers.find((c) => c.source_id === id);
+          if (item) startEditCrawler(item);
+        }
+        return;
+      }
+      if (action === "run" && type === "crawler") {
+        await fetchJSON(`/api/config/crawlers/${id}/run`, { method: "POST" });
+        await refreshLists();
+        showMessage("已触发抓取");
+        return;
+      }
+      if (action === "delete") {
+        if (!confirm("确认删除/禁用该条目？")) {
+          return;
+        }
+        await fetchJSON(`/api/config/${type}s/${id}`, { method: "DELETE" });
+        await refreshMeta();
+        await refreshLists();
+        showMessage("已删除/禁用");
+        return;
+      }
+      if (action === "enable") {
+        await fetchJSON(`/api/config/${type}s/${id}/enable`, { method: "POST" });
+        await refreshMeta();
+        await refreshLists();
+        showMessage("已启用");
+      }
+    } catch (error) {
+      showMessage(`操作失败：${error.message}`);
+    }
+  }
+
+  function bindActionHandlers(container, type) {
+    container.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) {
+        return;
+      }
+      const action = button.dataset.action;
+      const id = button.dataset.id;
+      handleAction(type, action, id);
+    });
+  }
+
+  bindActionHandlers(domainList, "domain");
+  bindActionHandlers(skillList, "skill");
+  bindActionHandlers(agentList, "agent");
+  bindActionHandlers(docList, "document");
+  bindActionHandlers(templateList, "report-template");
+  bindActionHandlers(crawlerList, "crawler");
 
   createDomainBtn.addEventListener("click", async () => {
     try {
@@ -775,16 +1178,32 @@ async function initConfigPage() {
         name: domainNameInput.value.trim(),
         description: domainDescInput.value.trim(),
         domain_id: domainIdInput.value.trim() || undefined,
+        default_agents: domainDefaultAgents.value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length),
+        default_skills: domainDefaultSkills.value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length),
       };
-      await fetchJSON("/api/config/domains", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      domainNameInput.value = "";
-      domainIdInput.value = "";
-      domainDescInput.value = "";
-      showMessage("自定义领域已创建");
+      if (editingDomainId) {
+        await fetchJSON(`/api/config/domains/${editingDomainId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("领域已更新");
+        resetDomainForm();
+      } else {
+        await fetchJSON("/api/config/domains", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("自定义领域已创建");
+        resetDomainForm();
+      }
       await refreshMeta();
       await refreshLists();
     } catch (error) {
@@ -815,22 +1234,23 @@ async function initConfigPage() {
           .filter((item) => item.length),
         example_output: skillExampleOutput.value.trim(),
       };
-      await fetchJSON("/api/config/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      skillNameInput.value = "";
-      skillIdInput.value = "";
-      skillDescInput.value = "";
-      skillCategoryInput.value = "";
-      skillModeSelect.value = "";
-      skillInputFields.value = "";
-      skillOutputFields.value = "";
-      skillPromptTemplate.value = "";
-      skillTagsInput.value = "";
-      skillExampleOutput.value = "";
-      showMessage("自定义Skill已创建");
+      if (editingSkillId) {
+        await fetchJSON(`/api/config/skills/${editingSkillId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("Skill已更新");
+        resetSkillForm();
+      } else {
+        await fetchJSON("/api/config/skills", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("自定义Skill已创建");
+        resetSkillForm();
+      }
       await refreshMeta();
       await refreshLists();
     } catch (error) {
@@ -853,21 +1273,23 @@ async function initConfigPage() {
         category: agentCategorySelect.value || "",
         skill_ids: selectedSkills,
       };
-      await fetchJSON("/api/config/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      agentNameInput.value = "";
-      agentFocusInput.value = "";
-      agentDescInput.value = "";
-      agentQueryInput.value = "";
-      agentIdInput.value = "";
-      agentCategorySelect.value = "";
-      Array.from(document.querySelectorAll("input[name='agentSkills']")).forEach((el) => {
-        el.checked = false;
-      });
-      showMessage("自定义Agent已创建");
+      if (editingAgentId) {
+        await fetchJSON(`/api/config/agents/${editingAgentId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("Agent已更新");
+        resetAgentForm();
+      } else {
+        await fetchJSON("/api/config/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("自定义Agent已创建");
+        resetAgentForm();
+      }
       await refreshMeta();
       await refreshLists();
     } catch (error) {
@@ -884,21 +1306,114 @@ async function initConfigPage() {
         source_type: docSourceTypeInput.value.trim() || "custom",
         content: docContentInput.value.trim(),
       };
-      await fetchJSON("/api/config/documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      docTitleInput.value = "";
-      docSourceInput.value = "";
-      docSourceTypeInput.value = "";
-      docContentInput.value = "";
-      showMessage("RAG文档已保存");
+      if (editingDocId) {
+        await fetchJSON(`/api/config/documents/${editingDocId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("RAG文档已更新");
+        resetDocForm();
+      } else {
+        await fetchJSON("/api/config/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("RAG文档已保存");
+        resetDocForm();
+      }
       await refreshLists();
     } catch (error) {
       showMessage(`保存文档失败：${error.message}`);
     }
   });
+
+  createTemplateBtn.addEventListener("click", async () => {
+    try {
+      const sections = templateSectionsInput.value.trim()
+        ? JSON.parse(templateSectionsInput.value.trim())
+        : [];
+      const payload = {
+        name: templateNameInput.value.trim(),
+        description: templateDescInput.value.trim(),
+        template_id: templateIdInput.value.trim() || undefined,
+        sections,
+      };
+      if (editingTemplateId) {
+        await fetchJSON(`/api/config/report-templates/${editingTemplateId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("模板已更新");
+        resetTemplateForm();
+      } else {
+        await fetchJSON("/api/config/report-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("模板已创建");
+        resetTemplateForm();
+      }
+      await refreshMeta();
+      await refreshLists();
+    } catch (error) {
+      showMessage(`保存模板失败：${error.message}`);
+    }
+  });
+
+  createCrawlerBtn.addEventListener("click", async () => {
+    try {
+      const payload = {
+        name: crawlerNameInput.value.trim(),
+        domain_id: crawlerDomainSelect.value,
+        url: crawlerUrlInput.value.trim(),
+        source_type: crawlerSourceTypeInput.value.trim() || "crawler",
+        interval_minutes: Number(crawlerIntervalInput.value) || 1440,
+        enabled: Boolean(crawlerEnabledInput.checked),
+        description: crawlerDescInput.value.trim(),
+      };
+      if (editingCrawlerId) {
+        await fetchJSON(`/api/config/crawlers/${editingCrawlerId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("来源已更新");
+        resetCrawlerForm();
+      } else {
+        await fetchJSON("/api/config/crawlers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        showMessage("来源已创建");
+        resetCrawlerForm();
+      }
+      await refreshLists();
+    } catch (error) {
+      showMessage(`保存来源失败：${error.message}`);
+    }
+  });
+
+  runAllCrawlerBtn.addEventListener("click", async () => {
+    try {
+      await fetchJSON("/api/config/crawlers/run_all", { method: "POST" });
+      showMessage("已触发全部抓取");
+      await refreshLists();
+    } catch (error) {
+      showMessage(`触发失败：${error.message}`);
+    }
+  });
+
+  cancelDomainBtn.addEventListener("click", () => resetDomainForm());
+  cancelSkillBtn.addEventListener("click", () => resetSkillForm());
+  cancelAgentBtn.addEventListener("click", () => resetAgentForm());
+  cancelDocBtn.addEventListener("click", () => resetDocForm());
+  cancelTemplateBtn.addEventListener("click", () => resetTemplateForm());
+  cancelCrawlerBtn.addEventListener("click", () => resetCrawlerForm());
 }
 
 document.addEventListener("DOMContentLoaded", () => {

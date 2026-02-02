@@ -30,13 +30,18 @@ class AgentResult:
 
 
 def load_agent_configs(
-    base_dir: str, custom_agents: Optional[List[Dict[str, object]]] = None
+    base_dir: str,
+    custom_agents: Optional[List[Dict[str, object]]] = None,
+    disabled_ids: Optional[List[str]] = None,
 ) -> Dict[str, AgentConfig]:
     config_path = os.path.join(base_dir, "data", "agents.json")
     with open(config_path, "r", encoding="utf-8") as handle:
         raw = json.load(handle)
     agents: Dict[str, AgentConfig] = {}
+    disabled = set(disabled_ids or [])
     for entry in raw:
+        if entry.get("id") in disabled:
+            continue
         agent = AgentConfig(
             agent_id=entry["id"],
             name=entry.get("name", entry["id"]),
@@ -51,6 +56,8 @@ def load_agent_configs(
         agents[agent.agent_id] = agent
     if custom_agents:
         for entry in custom_agents:
+            if entry.get("agent_id") in disabled:
+                continue
             agent = AgentConfig(
                 agent_id=str(entry.get("agent_id", "")),
                 name=str(entry.get("name", "")),
