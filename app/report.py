@@ -70,8 +70,13 @@ def build_report_sections(
 
     for section in template.get("sections", []):
         section_type = section.get("type")
+        source_key = section.get("source")
+        max_bullets = int(section.get("max_bullets", 6))
+        viewpoint_template = section.get("viewpoint_template", "")
         if section_type == "summary":
-            bullets = _summary_to_bullets(insight_summary)
+            bullets = _bullets_from_source(
+                source_key, insight_summary, agent_results, skill_outputs
+            ) or _summary_to_bullets(insight_summary)
             if section.get("use_llm") and not llm.is_mock:
                 bullets = _llm_section_bullets(
                     llm, objective, section.get("instruction", ""), agent_results, bullets
@@ -80,7 +85,7 @@ def build_report_sections(
                 {
                     "title": section.get("title", "洞察摘要"),
                     "type": "summary",
-                    "bullets": bullets,
+                    "bullets": bullets[:max_bullets],
                     "instruction": section.get("instruction", ""),
                 }
             )
@@ -88,7 +93,9 @@ def build_report_sections(
             per_topic = bool(section.get("per_topic", True))
             if per_topic:
                 for topic in topics:
-                    bullets = _topic_bullets(topic, agent_results)
+                    bullets = _bullets_from_source(
+                        source_key, insight_summary, agent_results, skill_outputs, topic=topic
+                    ) or _topic_bullets(topic, agent_results)
                     if section.get("use_llm") and not llm.is_mock:
                         bullets = _llm_section_bullets(
                             llm,
@@ -98,21 +105,28 @@ def build_report_sections(
                             bullets,
                             topic=topic,
                         )
-                    viewpoint = f"启示：优先验证{topic}相关安全能力与标准对齐。"
+                    viewpoint = (
+                        viewpoint_template.format(topic=topic)
+                        if viewpoint_template
+                        else f"启示：优先验证{topic}相关安全能力与标准对齐。"
+                    )
                     sections.append(
                         {
                             "title": f"{section.get('title', '技术洞察')} - {topic}",
                             "type": "tech",
                             "topic": topic,
-                            "bullets": bullets,
+                            "bullets": bullets[:max_bullets],
                             "viewpoint": viewpoint,
                             "instruction": section.get("instruction", ""),
                         }
                     )
             else:
-                bullets = []
+                bullets: List[str] = []
                 for topic in topics:
-                    bullets.extend(_topic_bullets(topic, agent_results))
+                    topic_bullets = _bullets_from_source(
+                        source_key, insight_summary, agent_results, skill_outputs, topic=topic
+                    ) or _topic_bullets(topic, agent_results)
+                    bullets.extend(topic_bullets)
                 if section.get("use_llm") and not llm.is_mock:
                     bullets = _llm_section_bullets(
                         llm, objective, section.get("instruction", ""), agent_results, bullets
@@ -122,7 +136,7 @@ def build_report_sections(
                         "title": section.get("title", "技术洞察"),
                         "type": "tech",
                         "topic": ",".join(topics),
-                        "bullets": bullets[:6],
+                        "bullets": bullets[:max_bullets],
                         "viewpoint": "启示：建议针对关键技术统一规划验证路径。",
                         "instruction": section.get("instruction", ""),
                     }
@@ -130,7 +144,9 @@ def build_report_sections(
         elif section_type == "closing":
             capability = skill_outputs.get("capability_verification", {})
             verification_plan = skill_outputs.get("verification_plan", {})
-            bullets = _closing_bullets(capability, verification_plan)
+            bullets = _bullets_from_source(
+                source_key, insight_summary, agent_results, skill_outputs
+            ) or _closing_bullets(capability, verification_plan)
             if section.get("use_llm") and not llm.is_mock:
                 bullets = _llm_section_bullets(
                     llm, objective, section.get("instruction", ""), agent_results, bullets
@@ -139,7 +155,7 @@ def build_report_sections(
                 {
                     "title": section.get("title", "洞察总结与验证能力"),
                     "type": "closing",
-                    "bullets": bullets,
+                    "bullets": bullets[:max_bullets],
                     "instruction": section.get("instruction", ""),
                 }
             )
@@ -148,7 +164,7 @@ def build_report_sections(
                 {
                     "title": section.get("title", "自定义板块"),
                     "type": section_type or "custom",
-                    "bullets": section.get("bullets", []),
+                    "bullets": (section.get("bullets", []) or [])[:max_bullets],
                     "instruction": section.get("instruction", ""),
                 }
             )
@@ -220,3 +236,61 @@ def _llm_section_bullets(
         return lines[:5] if lines else fallback
     except Exception:
         return fallback
+
+
+def _bullets_from_source(
+    source_key: Optional[str],
+    insight_summary: str,
+    agent_results: List[Dict[str, object]],
+    skill_outputs: Dict[str, object],
+    topic: str = "",
+) -> List[str]:
+    if not source_key:
+        return []
+    if source_key == "insight_summary":
+        return _summary_to_bullets(insight_summary)
+    if source_key == "trend_synthesis":
+        trend = skill_outputs.get("trend_synthesis", {})
+        if isinstance(trend, dict):
+            return [f"热点：{item}" for item in trend.get("trending_keywords", [])]
+    if source_key == "comparison":
+        comparison = skill_outputs.get("comparison", {})
+        if isinstance(comparison, dict):
+            bullets = [f"共识关键词：{item}" for item in comparison.get("common_keywords", [])]
+            if comparison.get("observation"):
+                bullets.append(f"观察：{comparison.get('observation')}")
+            return bullets
+    if source_key == "capability_verification":
+        cap = skill_outputs.get("capability_verification", {})
+        if isinstance(cap, dict):
+            return [
+                f"{item.get('name')} (成熟度: {item.get('maturity')})"
+                for item in cap.get("capabilities", [])
+            ]
+    if source_key == "verification_plan":
+        plan = skill_outputs.get("verification_plan", {})
+        if isinstance(plan, dict):
+            return list(plan.get("plan", []))
+    if source_key == "evidence_chain":
+        chain = skill_outputs.get("evidence_chain", {})
+        if isinstance(chain, dict):
+            bullets = []
+            for agent_name, items in chain.items():
+                titles = [item.get("title") for item in items if item.get("title")]
+                if titles:
+                    bullets.append(f"{agent_name}: {', '.join(titles[:3])}")
+            return bullets
+    if source_key == "agent_results":
+        bullets = []
+        for result in agent_results:
+            summary = str(result.get("summary", "")).splitlines()
+            if summary:
+                bullets.append(f"{result.get('agent_name')}: {summary[0]}")
+        return bullets
+    if source_key == "report_outline":
+        outline = skill_outputs.get("report_outline", {})
+        if isinstance(outline, dict):
+            return list(outline.get("outline", []))
+    if source_key == "topic":
+        return _topic_bullets(topic, agent_results)
+    return []

@@ -50,6 +50,15 @@ template to control slide layout (summary, per-topic, closing, etc.).
 Upload PDF/DOCX/PPTX files in `/ui/config` -> "RAG上传" and the content will be
 ingested and indexed automatically.
 
+## Insight flow and artifacts
+
+The platform follows a generic flow: objective -> RAG retrieval -> Agent insight
+-> Skill processing -> Report output. Key artifacts include:
+
+- insight_summary: overall conclusions and trends
+- capability_report: security capability + verification suggestions
+- evidence_chain: evidence mapping for each conclusion
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.

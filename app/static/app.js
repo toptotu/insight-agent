@@ -494,6 +494,8 @@ async function initInsightPage() {
   const resultSummary = document.getElementById("resultSummary");
   const resultCapabilities = document.getElementById("resultCapabilities");
   const resultEvidence = document.getElementById("resultEvidence");
+  const insightFlow = document.getElementById("insightFlow");
+  const artifactDescriptions = document.getElementById("artifactDescriptions");
 
   let meta = await fetchJSON("/api/meta");
   let domains = meta.domains || [];
@@ -565,6 +567,78 @@ async function initInsightPage() {
   domainSelect.addEventListener("change", updateDefaults);
   updateDefaults();
 
+  function renderFlow(flowItems) {
+    if (!insightFlow) {
+      return;
+    }
+    insightFlow.innerHTML = "";
+    const items =
+      flowItems ||
+      [
+        {
+          step: "任务定义",
+          description: "明确洞察目标与范围",
+          outputs: ["洞察配置"],
+        },
+        {
+          step: "RAG检索",
+          description: "召回多源证据",
+          outputs: ["证据候选"],
+        },
+        {
+          step: "Agent洞察",
+          description: "分角色分析",
+          outputs: ["Agent洞察"],
+        },
+        {
+          step: "Skill处理",
+          description: "趋势/对比/验证",
+          outputs: ["能力产物"],
+        },
+        {
+          step: "汇总与报告",
+          description: "产出总结与PPT",
+          outputs: ["洞察报告"],
+        },
+      ];
+    items.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "flow-card";
+      const title = document.createElement("h4");
+      title.textContent = item.step;
+      const desc = document.createElement("p");
+      desc.textContent = item.description || "";
+      const output = document.createElement("p");
+      output.className = "meta";
+      output.textContent = `输出：${(item.outputs || []).join(" / ")}`;
+      card.appendChild(title);
+      card.appendChild(desc);
+      card.appendChild(output);
+      insightFlow.appendChild(card);
+    });
+  }
+
+  function renderArtifactDescriptions(descriptions) {
+    if (!artifactDescriptions) {
+      return;
+    }
+    const lines = [];
+    const items =
+      descriptions || {
+        insight_summary: "洞察总结：关键结论与趋势。",
+        capability_report: "能力识别与验证报告：安全能力与验证方法。",
+        evidence_chain: "证据链：结论对应的文档证据。",
+        agent_results: "Agent洞察：分主题分析输出。",
+      };
+    Object.keys(items).forEach((key) => {
+      lines.push(`${key}: ${items[key]}`);
+    });
+    artifactDescriptions.textContent = lines.join("\n");
+  }
+
+  renderFlow();
+  renderArtifactDescriptions();
+
   runButton.addEventListener("click", async () => {
     runButton.disabled = true;
     runButton.textContent = "运行中...";
@@ -604,6 +678,8 @@ async function initInsightPage() {
       resultSummary.textContent = response.insight_summary || "";
       renderCapabilityReport(resultCapabilities, response.capability_report);
       renderEvidence(resultEvidence, (response.skill_outputs || {}).evidence_chain);
+      renderFlow(response.insight_flow);
+      renderArtifactDescriptions(response.artifact_descriptions);
     } catch (error) {
       resultSummary.textContent = `发生错误：${error.message}`;
     } finally {

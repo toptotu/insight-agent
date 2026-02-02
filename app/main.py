@@ -46,6 +46,46 @@ app = FastAPI(title="Insight Platform", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "app", "static")), name="static")
 
+INSIGHT_FLOW = [
+    {
+        "step": "任务定义",
+        "description": "明确洞察目标与关注范围",
+        "inputs": ["目标", "领域"],
+        "outputs": ["洞察任务配置"],
+    },
+    {
+        "step": "RAG检索",
+        "description": "从多源材料召回证据",
+        "inputs": ["标准/论文/白皮书等"],
+        "outputs": ["证据候选集"],
+    },
+    {
+        "step": "Agent洞察",
+        "description": "各Agent生成分主题洞察",
+        "inputs": ["证据候选集"],
+        "outputs": ["Agent洞察结果"],
+    },
+    {
+        "step": "Skill处理",
+        "description": "趋势融合、对比、风险与验证能力识别",
+        "inputs": ["Agent洞察结果"],
+        "outputs": ["洞察能力产物"],
+    },
+    {
+        "step": "汇总与报告",
+        "description": "生成洞察总结与PPT报告",
+        "inputs": ["洞察能力产物"],
+        "outputs": ["洞察总结/报告"],
+    },
+]
+
+ARTIFACT_DESCRIPTIONS = {
+    "insight_summary": "洞察总结：面向目标的关键结论与趋势归纳。",
+    "capability_report": "能力识别与验证报告：识别安全能力并给出验证方法与成熟度。",
+    "evidence_chain": "证据链：每条洞察关联的标准/论文/白皮书证据。",
+    "agent_results": "Agent洞察：各Agent基于证据的分主题分析。",
+}
+
 
 @app.on_event("startup")
 def start_crawler_service() -> None:
@@ -242,6 +282,8 @@ def create_insight(request_body: InsightRequest) -> JSONResponse:
         "capability_report": capability_report,
         "report_template": report_template,
         "report_sections": report_sections,
+        "insight_flow": INSIGHT_FLOW,
+        "artifact_descriptions": ARTIFACT_DESCRIPTIONS,
         "llm_mode": "aliyun" if not llm.is_mock else "mock",
     }
     task_id = task_store.create_task(response_payload)
