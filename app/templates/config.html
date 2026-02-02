@@ -31,6 +31,7 @@
 
 <section class="panel">
   <h3>自定义Skill</h3>
+  <p class="meta">可参考Claude等通用技能模板，设置类别、输入输出与Prompt。</p>
   <div class="form-grid">
     <label>
       Skill名称
@@ -41,6 +42,43 @@
       <input id="skillIdInput" type="text" placeholder="自定义ID，可不填" />
     </label>
   </div>
+  <div class="form-grid">
+    <label>
+      Skill类别
+      <input id="skillCategoryInput" type="text" placeholder="summarize/compare/plan" />
+    </label>
+    <label>
+      执行模式
+      <select id="skillModeSelect">
+        <option value="">默认</option>
+        <option value="rule">规则</option>
+        <option value="llm">LLM</option>
+        <option value="hybrid">混合</option>
+      </select>
+    </label>
+  </div>
+  <div class="form-grid">
+    <label>
+      输入字段（逗号分隔）
+      <input id="skillInputFields" type="text" placeholder="agent_results, objective" />
+    </label>
+    <label>
+      输出字段（逗号分隔）
+      <input id="skillOutputFields" type="text" placeholder="summary, highlights" />
+    </label>
+  </div>
+  <label>
+    Prompt模板
+    <textarea id="skillPromptTemplate" rows="3" placeholder="例如：请根据{{objective}}总结关键洞察..."></textarea>
+  </label>
+  <label>
+    标签（逗号分隔）
+    <input id="skillTagsInput" type="text" placeholder="Claude-Summarize,analysis" />
+  </label>
+  <label>
+    示例输出
+    <textarea id="skillExampleOutput" rows="2" placeholder="示例输出结构"></textarea>
+  </label>
   <label>
     描述
     <textarea id="skillDescInput" rows="2" placeholder="Skill描述"></textarea>

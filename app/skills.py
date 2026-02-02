@@ -1,7 +1,7 @@
 import json
 import os
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from app.rag import _tokenize
@@ -12,6 +12,13 @@ class SkillConfig:
     skill_id: str
     name: str
     description: str
+    category: str = ""
+    mode: str = "rule"
+    input_fields: List[str] = field(default_factory=list)
+    output_fields: List[str] = field(default_factory=list)
+    prompt_template: str = ""
+    tags: List[str] = field(default_factory=list)
+    example_output: str = ""
     origin: str = "builtin"
 
 
@@ -27,6 +34,13 @@ def load_skill_configs(
             skill_id=entry["id"],
             name=entry.get("name", entry["id"]),
             description=entry.get("description", ""),
+            category=entry.get("category", ""),
+            mode=entry.get("mode", "rule"),
+            input_fields=list(entry.get("input_fields") or []),
+            output_fields=list(entry.get("output_fields") or []),
+            prompt_template=entry.get("prompt_template", ""),
+            tags=list(entry.get("tags") or []),
+            example_output=entry.get("example_output", ""),
             origin="builtin",
         )
         skills[skill.skill_id] = skill
@@ -36,6 +50,13 @@ def load_skill_configs(
                 skill_id=str(entry.get("skill_id", "")),
                 name=str(entry.get("name", "")),
                 description=str(entry.get("description", "")),
+                category=str(entry.get("category", "")),
+                mode=str(entry.get("mode", "custom")),
+                input_fields=list(entry.get("input_fields") or []),
+                output_fields=list(entry.get("output_fields") or []),
+                prompt_template=str(entry.get("prompt_template", "")),
+                tags=list(entry.get("tags") or []),
+                example_output=str(entry.get("example_output", "")),
                 origin="custom",
             )
             skills[skill.skill_id] = skill
@@ -106,6 +127,10 @@ def apply_skills(
                     "skill_id": skill_id,
                     "name": config.name if config else skill_id,
                     "description": config.description if config else "",
+                    "category": config.category if config else "",
+                    "mode": config.mode if config else "custom",
+                    "tags": config.tags if config else [],
+                    "example_output": config.example_output if config else "",
                     "note": "自定义Skill已选择，建议结合人工或扩展逻辑使用。",
                 }
             )

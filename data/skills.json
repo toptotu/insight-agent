@@ -2,41 +2,97 @@
   {
     "id": "evidence_chain",
     "name": "证据链构建",
-    "description": "将洞察结论与文档证据进行绑定"
+    "description": "将洞察结论与文档证据进行绑定",
+    "category": "extract",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["evidence_chain"],
+    "prompt_template": "",
+    "tags": ["Claude-Extract", "evidence"],
+    "example_output": "结论A -> 标准/论文/白皮书证据列表"
   },
   {
     "id": "source_collection",
     "name": "洞察源采集计划",
-    "description": "给出行业通用的数据源与爬取计划建议"
+    "description": "给出行业通用的数据源与爬取计划建议",
+    "category": "plan",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["recommended_sources"],
+    "prompt_template": "",
+    "tags": ["Claude-Plan", "source"],
+    "example_output": "推荐采集标准、会议、论文、白皮书等来源"
   },
   {
     "id": "comparison",
     "name": "对比分析",
-    "description": "跨来源对比关键观点与指标"
+    "description": "跨来源对比关键观点与指标",
+    "category": "compare",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["common_keywords", "observation"],
+    "prompt_template": "",
+    "tags": ["Claude-Compare", "analysis"],
+    "example_output": "多源一致关注关键词与差异点"
   },
   {
     "id": "trend_synthesis",
     "name": "趋势融合",
-    "description": "提炼多源洞察中的热点趋势与关键词"
+    "description": "提炼多源洞察中的热点趋势与关键词",
+    "category": "synthesize",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["trending_keywords", "insight"],
+    "prompt_template": "",
+    "tags": ["Claude-Summarize", "trend"],
+    "example_output": "太赫兹、AI原生、空天地一体为热点"
   },
   {
     "id": "risk_identification",
     "name": "风险识别",
-    "description": "识别潜在风险、漏洞或矛盾"
+    "description": "识别潜在风险、漏洞或矛盾",
+    "category": "analyze",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["risk_notes"],
+    "prompt_template": "",
+    "tags": ["Claude-Analyze", "risk"],
+    "example_output": "关注隐私、攻击面扩大等风险"
   },
   {
     "id": "capability_verification",
     "name": "能力识别与验证",
-    "description": "从洞察中识别安全能力并给出验证建议"
+    "description": "从洞察中识别安全能力并给出验证建议",
+    "category": "classify",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["capabilities"],
+    "prompt_template": "",
+    "tags": ["Claude-Classify", "verification"],
+    "example_output": "零信任、抗干扰、隐私计算等能力识别"
   },
   {
     "id": "verification_plan",
     "name": "验证计划",
-    "description": "输出验证能力的分阶段测试计划"
+    "description": "输出验证能力的分阶段测试计划",
+    "category": "plan",
+    "mode": "rule",
+    "input_fields": ["capability_verification"],
+    "output_fields": ["plan"],
+    "prompt_template": "",
+    "tags": ["Claude-Plan", "testing"],
+    "example_output": "阶段1数据源梳理、阶段2验证环境搭建"
   },
   {
     "id": "report_outline",
     "name": "报告结构化输出",
-    "description": "生成洞察报告的结构化大纲"
+    "description": "生成洞察报告的结构化大纲",
+    "category": "report",
+    "mode": "rule",
+    "input_fields": ["agent_results"],
+    "output_fields": ["outline", "contributors"],
+    "prompt_template": "",
+    "tags": ["Claude-Write", "report"],
+    "example_output": "洞察目标、趋势、证据、能力、风险"
   }
 ]

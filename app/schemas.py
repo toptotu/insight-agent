@@ -38,6 +38,13 @@ class CreateSkillRequest(BaseModel):
     skill_id: Optional[str] = None
     name: str = Field(..., min_length=1, max_length=120)
     description: str = Field("", max_length=500)
+    category: str = Field("", max_length=100)
+    mode: str = Field("", max_length=50)
+    input_fields: List[str] = []
+    output_fields: List[str] = []
+    prompt_template: str = Field("", max_length=2000)
+    tags: List[str] = []
+    example_output: str = Field("", max_length=1000)
 
 
 class CreateDocumentRequest(BaseModel):

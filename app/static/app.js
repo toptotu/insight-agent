@@ -132,6 +132,29 @@ function renderSummaryCards(container, summaryText) {
   });
 }
 
+function renderBulletList(container, text) {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!text) {
+    container.textContent = "";
+    return;
+  }
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/^[-*\d\.\s]+/, "").trim())
+    .filter((line) => line.length > 0);
+  const list = document.createElement("ul");
+  list.className = "bullet-list";
+  lines.forEach((line) => {
+    const item = document.createElement("li");
+    item.textContent = line;
+    list.appendChild(item);
+  });
+  container.appendChild(list);
+}
+
 function renderViewpoints(container, comparison) {
   if (!container) {
     return;
@@ -208,15 +231,59 @@ function renderSourceCollection(container, collection) {
   container.textContent = lines.join("\n");
 }
 
+function renderChart(container, config) {
+  if (!container || !window.Chart || !(container instanceof HTMLCanvasElement)) {
+    return false;
+  }
+  if (container.__chart) {
+    container.__chart.destroy();
+  }
+  container.__chart = new window.Chart(container, config);
+  return true;
+}
+
 function renderBarChart(container, labels, values) {
   if (!container) {
     return;
   }
-  container.innerHTML = "";
   if (!labels.length) {
     container.textContent = "暂无数据";
     return;
   }
+  if (container instanceof HTMLCanvasElement && !window.Chart) {
+    const parent = container.parentElement;
+    if (parent) {
+      parent.textContent = "图表库未加载，无法绘制。";
+    }
+    return;
+  }
+  if (renderChart(container, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "数量",
+          data: values,
+          backgroundColor: "rgba(56, 189, 248, 0.7)",
+          borderColor: "rgba(14, 116, 144, 1)",
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  })) {
+    return;
+  }
+  container.innerHTML = "";
   const max = Math.max(...values, 1);
   labels.forEach((label, index) => {
     const row = document.createElement("div");
@@ -237,6 +304,47 @@ function renderBarChart(container, labels, values) {
     row.appendChild(caption);
     row.appendChild(barWrap);
     container.appendChild(row);
+  });
+}
+
+function renderPieChart(container, labels, values) {
+  if (!container) {
+    return;
+  }
+  if (!labels.length) {
+    container.textContent = "暂无数据";
+    return;
+  }
+  if (container instanceof HTMLCanvasElement && !window.Chart) {
+    const parent = container.parentElement;
+    if (parent) {
+      parent.textContent = "图表库未加载，无法绘制。";
+    }
+    return;
+  }
+  renderChart(container, {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [
+        {
+          data: values,
+          backgroundColor: [
+            "rgba(59, 130, 246, 0.7)",
+            "rgba(34, 197, 94, 0.7)",
+            "rgba(251, 191, 36, 0.7)",
+            "rgba(248, 113, 113, 0.7)",
+            "rgba(167, 139, 250, 0.7)",
+          ],
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: "bottom" },
+      },
+    },
   });
 }
 
@@ -349,8 +457,9 @@ async function initInsightPage() {
     skills.forEach((skill) => {
       const checked = defaults.includes(skill.skill_id);
       const originLabel = skill.origin === "custom" ? "【自定义】" : "";
+      const categoryLabel = skill.category ? `(${skill.category})` : "";
       skillsContainer.appendChild(
-        createCheckbox(skill.skill_id, `${originLabel}${skill.name}`, "skills", checked)
+        createCheckbox(skill.skill_id, `${originLabel}${skill.name}${categoryLabel}`, "skills", checked)
       );
     });
   }
@@ -440,6 +549,7 @@ async function initReportPage() {
   const reportAgents = document.getElementById("reportAgents");
   const reportEvidence = document.getElementById("reportEvidence");
   const reportSourceCollection = document.getElementById("reportSourceCollection");
+  const reportSourceChart = document.getElementById("reportSourceChart");
 
   try {
     const response = await fetchJSON(`/api/insights/${window.__REPORT_TASK_ID__}`);
@@ -447,7 +557,7 @@ async function initReportPage() {
     reportMeta.textContent = `领域：${response.domain.name} | LLM模式：${response.llm_mode}`;
     reportObjective.textContent = response.objective || "洞察目标";
     reportDate.textContent = response.created_at ? `生成时间：${formatDate(response.created_at)}` : "";
-    reportSummary.textContent = response.insight_summary || "";
+    renderBulletList(reportSummary, response.insight_summary || "");
     renderSummaryCards(reportSummaryCards, response.insight_summary || "");
     renderOutline(reportOutline, skillOutputs.report_outline);
 
@@ -485,6 +595,14 @@ async function initReportPage() {
     renderAgentResults(reportAgents, response.agent_results);
     renderEvidence(reportEvidence, evidenceChain);
     renderSourceCollection(reportSourceCollection, skillOutputs.source_collection);
+
+    if (skillOutputs.source_collection && skillOutputs.source_collection.source_type_counts) {
+      const sourceTypes = Object.keys(skillOutputs.source_collection.source_type_counts);
+      const sourceCounts = sourceTypes.map(
+        (key) => skillOutputs.source_collection.source_type_counts[key]
+      );
+      renderPieChart(reportSourceChart, sourceTypes, sourceCounts);
+    }
   } catch (error) {
     if (reportSummary) {
       reportSummary.textContent = `加载失败：${error.message}`;
@@ -520,6 +638,13 @@ async function initConfigPage() {
   const skillNameInput = document.getElementById("skillNameInput");
   const skillIdInput = document.getElementById("skillIdInput");
   const skillDescInput = document.getElementById("skillDescInput");
+  const skillCategoryInput = document.getElementById("skillCategoryInput");
+  const skillModeSelect = document.getElementById("skillModeSelect");
+  const skillInputFields = document.getElementById("skillInputFields");
+  const skillOutputFields = document.getElementById("skillOutputFields");
+  const skillPromptTemplate = document.getElementById("skillPromptTemplate");
+  const skillTagsInput = document.getElementById("skillTagsInput");
+  const skillExampleOutput = document.getElementById("skillExampleOutput");
   const createSkillBtn = document.getElementById("createSkillBtn");
   const skillList = document.getElementById("skillList");
 
@@ -601,12 +726,14 @@ async function initConfigPage() {
 
     renderSimpleTable(
       skillList,
-      ["Skill ID", "名称", "描述", "创建时间"],
+      ["Skill ID", "名称", "类别", "模式", "标签", "描述"],
       (skillResp.items || []).map((item) => [
         item.skill_id,
         item.name,
-        item.description,
-        formatDate(item.created_at),
+        item.category || "-",
+        item.mode || "-",
+        (item.tags || []).join(", "),
+        item.description || "",
       ])
     );
 
@@ -671,6 +798,22 @@ async function initConfigPage() {
         name: skillNameInput.value.trim(),
         description: skillDescInput.value.trim(),
         skill_id: skillIdInput.value.trim() || undefined,
+        category: skillCategoryInput.value.trim(),
+        mode: skillModeSelect.value,
+        input_fields: skillInputFields.value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length),
+        output_fields: skillOutputFields.value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length),
+        prompt_template: skillPromptTemplate.value.trim(),
+        tags: skillTagsInput.value
+          .split(",")
+          .map((item) => item.trim())
+          .filter((item) => item.length),
+        example_output: skillExampleOutput.value.trim(),
       };
       await fetchJSON("/api/config/skills", {
         method: "POST",
@@ -680,6 +823,13 @@ async function initConfigPage() {
       skillNameInput.value = "";
       skillIdInput.value = "";
       skillDescInput.value = "";
+      skillCategoryInput.value = "";
+      skillModeSelect.value = "";
+      skillInputFields.value = "";
+      skillOutputFields.value = "";
+      skillPromptTemplate.value = "";
+      skillTagsInput.value = "";
+      skillExampleOutput.value = "";
       showMessage("自定义Skill已创建");
       await refreshMeta();
       await refreshLists();

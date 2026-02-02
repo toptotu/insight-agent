@@ -20,7 +20,7 @@
     </div>
     <div class="slide-content">
       <div id="reportSummaryCards" class="card-grid"></div>
-      <pre id="reportSummary" class="output"></pre>
+      <div id="reportSummary" class="output"></div>
       <div id="reportOutline" class="output"></div>
     </div>
   </div>
@@ -41,7 +41,7 @@
       <h3>能力识别与验证</h3>
     </div>
     <div class="slide-content">
-      <div id="reportCapabilityChart" class="chart"></div>
+      <canvas id="reportCapabilityChart" class="chart-canvas"></canvas>
       <div id="reportCapabilities" class="output"></div>
       <div id="reportCustomSkills" class="output"></div>
       <div id="reportVerificationPlan" class="output"></div>
@@ -53,7 +53,10 @@
       <h3>证据链与Agent分析</h3>
     </div>
     <div class="slide-content">
-      <div id="reportEvidenceChart" class="chart"></div>
+      <div class="chart-grid">
+        <canvas id="reportEvidenceChart" class="chart-canvas"></canvas>
+        <canvas id="reportSourceChart" class="chart-canvas"></canvas>
+      </div>
       <div id="reportAgents" class="output"></div>
       <div id="reportEvidence" class="output"></div>
       <div id="reportSourceCollection" class="output"></div>
@@ -63,6 +66,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
   window.__REPORT_TASK_ID__ = "{{ task_id }}";
 </script>

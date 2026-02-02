@@ -60,6 +60,13 @@ class ConfigStore:
                     skill_id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
                     description TEXT,
+                    category TEXT,
+                    mode TEXT,
+                    input_fields TEXT,
+                    output_fields TEXT,
+                    prompt_template TEXT,
+                    tags TEXT,
+                    example_output TEXT,
                     created_at INTEGER NOT NULL
                 )
                 """
@@ -79,6 +86,7 @@ class ConfigStore:
             )
             conn.commit()
         self._ensure_agent_category_column()
+        self._ensure_skill_columns()
 
     def _ensure_agent_category_column(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -86,6 +94,23 @@ class ConfigStore:
             if "category" not in columns:
                 conn.execute("ALTER TABLE custom_agents ADD COLUMN category TEXT")
                 conn.commit()
+
+    def _ensure_skill_columns(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            columns = [row[1] for row in conn.execute("PRAGMA table_info(custom_skills)").fetchall()]
+            column_defs = {
+                "category": "TEXT",
+                "mode": "TEXT",
+                "input_fields": "TEXT",
+                "output_fields": "TEXT",
+                "prompt_template": "TEXT",
+                "tags": "TEXT",
+                "example_output": "TEXT",
+            }
+            for column, data_type in column_defs.items():
+                if column not in columns:
+                    conn.execute(f"ALTER TABLE custom_skills ADD COLUMN {column} {data_type}")
+            conn.commit()
 
     def list_domains(self) -> List[Dict[str, Any]]:
         with self._lock, sqlite3.connect(self.db_path) as conn:
@@ -194,22 +219,49 @@ class ConfigStore:
     def list_skills(self) -> List[Dict[str, Any]]:
         with self._lock, sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
-                "SELECT skill_id, name, description, created_at FROM custom_skills ORDER BY created_at DESC"
+                """
+                SELECT skill_id, name, description, category, mode, input_fields, output_fields, prompt_template,
+                       tags, example_output, created_at
+                FROM custom_skills
+                ORDER BY created_at DESC
+                """
             ).fetchall()
         return [
             {
                 "skill_id": row[0],
                 "name": row[1],
                 "description": row[2] or "",
-                "created_at": row[3],
+                "category": row[3] or "",
+                "mode": row[4] or "",
+                "input_fields": json.loads(row[5]) if row[5] else [],
+                "output_fields": json.loads(row[6]) if row[6] else [],
+                "prompt_template": row[7] or "",
+                "tags": json.loads(row[8]) if row[8] else [],
+                "example_output": row[9] or "",
+                "created_at": row[10],
             }
             for row in rows
         ]
 
-    def create_skill(self, name: str, description: str = "", skill_id: Optional[str] = None) -> Dict[str, Any]:
+    def create_skill(
+        self,
+        name: str,
+        description: str = "",
+        skill_id: Optional[str] = None,
+        category: str = "",
+        mode: str = "",
+        input_fields: Optional[List[str]] = None,
+        output_fields: Optional[List[str]] = None,
+        prompt_template: str = "",
+        tags: Optional[List[str]] = None,
+        example_output: str = "",
+    ) -> Dict[str, Any]:
         now = int(time.time())
         if not skill_id:
             skill_id = _generate_id("custom-skill")
+        input_fields_payload = json.dumps(input_fields or [], ensure_ascii=False)
+        output_fields_payload = json.dumps(output_fields or [], ensure_ascii=False)
+        tags_payload = json.dumps(tags or [], ensure_ascii=False)
         with self._lock, sqlite3.connect(self.db_path) as conn:
             exists = conn.execute(
                 "SELECT 1 FROM custom_skills WHERE skill_id = ?",
@@ -218,11 +270,40 @@ class ConfigStore:
             if exists:
                 raise ValueError("skill_id already exists")
             conn.execute(
-                "INSERT INTO custom_skills (skill_id, name, description, created_at) VALUES (?, ?, ?, ?)",
-                (skill_id, name, description, now),
+                """
+                INSERT INTO custom_skills
+                (skill_id, name, description, category, mode, input_fields, output_fields, prompt_template, tags,
+                 example_output, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    skill_id,
+                    name,
+                    description,
+                    category,
+                    mode,
+                    input_fields_payload,
+                    output_fields_payload,
+                    prompt_template,
+                    tags_payload,
+                    example_output,
+                    now,
+                ),
             )
             conn.commit()
-        return {"skill_id": skill_id, "name": name, "description": description, "created_at": now}
+        return {
+            "skill_id": skill_id,
+            "name": name,
+            "description": description,
+            "category": category,
+            "mode": mode,
+            "input_fields": input_fields or [],
+            "output_fields": output_fields or [],
+            "prompt_template": prompt_template,
+            "tags": tags or [],
+            "example_output": example_output,
+            "created_at": now,
+        }
 
     def list_documents(self, domain_id: Optional[str] = None) -> List[Dict[str, Any]]:
         query = """

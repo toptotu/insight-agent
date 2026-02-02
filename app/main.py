@@ -190,6 +190,13 @@ def create_custom_skill(request_body: CreateSkillRequest) -> JSONResponse:
             name=request_body.name,
             description=request_body.description,
             skill_id=request_body.skill_id,
+            category=request_body.category,
+            mode=request_body.mode,
+            input_fields=request_body.input_fields,
+            output_fields=request_body.output_fields,
+            prompt_template=request_body.prompt_template,
+            tags=request_body.tags,
+            example_output=request_body.example_output,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
