@@ -689,6 +689,114 @@ async function initInsightPage() {
   });
 }
 
+async function initQuickInsightPage() {
+  const quickInput = document.getElementById("quickInputText");
+  if (!quickInput) {
+    return;
+  }
+  const quickTitleInput = document.getElementById("quickTitleInput");
+  const quickObjectiveInput = document.getElementById("quickObjectiveInput");
+  const quickRunBtn = document.getElementById("quickRunBtn");
+  const quickResultMeta = document.getElementById("quickResultMeta");
+  const quickResultSummary = document.getElementById("quickResultSummary");
+
+  quickRunBtn.addEventListener("click", async () => {
+    quickRunBtn.disabled = true;
+    quickRunBtn.textContent = "生成中...";
+    quickResultMeta.textContent = "";
+    quickResultSummary.textContent = "";
+    try {
+      const payload = {
+        title: quickTitleInput.value.trim(),
+        objective: quickObjectiveInput.value.trim() || "快速洞察报告",
+        input_text: quickInput.value.trim(),
+      };
+      const response = await fetchJSON("/api/quick-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      quickResultMeta.innerHTML = `报告ID：${response.report_id} | <a href="/ui/quick-report/${response.report_id}" target="_blank">打开报告</a>`;
+      renderBulletList(quickResultSummary, response.summary || "");
+    } catch (error) {
+      quickResultSummary.textContent = `生成失败：${error.message}`;
+    } finally {
+      quickRunBtn.disabled = false;
+      quickRunBtn.textContent = "生成洞察报告";
+    }
+  });
+}
+
+async function initQuickReportsPage() {
+  const table = document.getElementById("quickReportTable");
+  if (!table) {
+    return;
+  }
+  const renderTable = (items) => {
+    if (!items || !items.length) {
+      table.textContent = "暂无报告。";
+      return;
+    }
+    const header = `
+      <div class="table-row table-header">
+        <div>时间</div>
+        <div>标题</div>
+        <div>摘要</div>
+        <div>操作</div>
+      </div>
+    `;
+    const rows = items
+      .map(
+        (item) => `
+        <div class="table-row">
+          <div>${formatDate(item.created_at)}</div>
+          <div>${item.title || "-"}</div>
+          <div>${item.summary_line || ""}</div>
+          <div>
+            <a href="/ui/quick-report/${item.report_id}" target="_blank">查看</a>
+            <button class="button action danger" data-action="delete" data-id="${item.report_id}">删除</button>
+          </div>
+        </div>
+      `
+      )
+      .join("");
+    table.innerHTML = header + rows;
+  };
+
+  const refresh = async () => {
+    const response = await fetchJSON("/api/quick-insights?limit=50");
+    renderTable(response.items || []);
+  };
+
+  table.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action='delete']");
+    if (!button) {
+      return;
+    }
+    if (!confirm("确认删除该报告？")) {
+      return;
+    }
+    const reportId = button.dataset.id;
+    await fetchJSON(`/api/quick-insights/${reportId}`, { method: "DELETE" });
+    await refresh();
+  });
+
+  await refresh();
+}
+
+async function initQuickReportPage() {
+  if (!window.__QUICK_REPORT_ID__) {
+    return;
+  }
+  const quickSlides = document.getElementById("quickSlides");
+  try {
+    const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`);
+    renderDynamicSlides(quickSlides, response.report_sections || [], response.objective);
+  } catch (error) {
+    quickSlides.textContent = `加载失败：${error.message}`;
+  }
+}
+
 async function initReportPage() {
   if (!window.__REPORT_TASK_ID__) {
     return;
@@ -1571,4 +1679,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initReportPage();
   initHistoryPage();
   initConfigPage();
+  initQuickInsightPage();
+  initQuickReportsPage();
+  initQuickReportPage();
 });

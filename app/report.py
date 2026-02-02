@@ -298,3 +298,73 @@ def _bullets_from_source(
     if source_key == "topic":
         return _topic_bullets(topic, agent_results)
     return []
+
+
+def build_quick_report_sections(
+    input_text: str, objective: str, llm: BaseLLMClient
+) -> List[Dict[str, object]]:
+    if llm.is_mock:
+        bullets = _summary_to_bullets(input_text)
+        return [
+            {
+                "title": "洞察摘要",
+                "type": "summary",
+                "bullets": bullets[:5],
+            },
+            {
+                "title": "关键洞察",
+                "type": "insights",
+                "bullets": bullets[5:10] or bullets[:5],
+                "viewpoint": "启示观点：建议进一步补充证据与验证。",
+            },
+            {
+                "title": "结论与下一步",
+                "type": "closing",
+                "bullets": ["总结核心观点", "明确验证计划", "持续补充材料"],
+            },
+        ]
+    prompt = "\n".join(
+        [
+            "你是洞察报告生成器，请输出PPT页要点。",
+            f"洞察目标：{objective}",
+            "输出格式：",
+            "[SUMMARY]",
+            "- ...",
+            "[INSIGHTS]",
+            "- ...",
+            "[CONCLUSION]",
+            "- ...",
+            "输入材料：",
+            input_text[:4000],
+        ]
+    )
+    text = llm.generate(prompt, max_tokens=400).text
+    sections = {"SUMMARY": [], "INSIGHTS": [], "CONCLUSION": []}
+    current = None
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("[SUMMARY]"):
+            current = "SUMMARY"
+            continue
+        if line.startswith("[INSIGHTS]"):
+            current = "INSIGHTS"
+            continue
+        if line.startswith("[CONCLUSION]"):
+            current = "CONCLUSION"
+            continue
+        if current:
+            cleaned = line.lstrip("-*0123456789. ").strip()
+            if cleaned:
+                sections[current].append(cleaned)
+    return [
+        {"title": "洞察摘要", "type": "summary", "bullets": sections["SUMMARY"][:6]},
+        {
+            "title": "关键洞察",
+            "type": "insights",
+            "bullets": sections["INSIGHTS"][:6],
+            "viewpoint": "启示观点：将洞察转化为验证与落地动作。",
+        },
+        {"title": "结论与下一步", "type": "closing", "bullets": sections["CONCLUSION"][:6]},
+    ]

@@ -59,6 +59,11 @@ The platform follows a generic flow: objective -> RAG retrieval -> Agent insight
 - capability_report: security capability + verification suggestions
 - evidence_chain: evidence mapping for each conclusion
 
+## Quick insight (independent)
+
+Use `/ui/quick-insight` to generate a PPT-style HTML report from direct input
+text. Manage reports at `/ui/quick-reports`.
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.

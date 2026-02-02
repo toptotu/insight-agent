@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="ppt" id="quickSlides"></section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.__QUICK_REPORT_ID__ = "{{ report_id }}";
+</script>
+{% endblock %}

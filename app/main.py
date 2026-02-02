@@ -14,8 +14,9 @@ from app.crawler import CrawlerService
 from app.file_ingest import SUPPORTED_EXTENSIONS, extract_text_from_upload
 from app.llm import create_llm_client
 from app.rag import RAGStore
-from app.report import build_insight_summary, build_report_sections
+from app.report import build_insight_summary, build_quick_report_sections, build_report_sections
 from app.report_templates import BUILTIN_REPORT_TEMPLATES
+from app.quick_store import QuickReportStore
 from app.schemas import (
     CreateAgentRequest,
     CreateCrawlerRequest,
@@ -41,6 +42,7 @@ config_store = ConfigStore(BASE_DIR)
 rag_store = RAGStore(BASE_DIR, config_store=config_store)
 task_store = TaskStore(BASE_DIR)
 crawler_service = CrawlerService(config_store, rag_store)
+quick_store = QuickReportStore(BASE_DIR)
 
 app = FastAPI(title="Insight Platform", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
@@ -185,6 +187,23 @@ def history_ui(request: Request) -> HTMLResponse:
 @app.get("/ui/config", response_class=HTMLResponse)
 def config_ui(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("config.html", {"request": request})
+
+
+@app.get("/ui/quick-insight", response_class=HTMLResponse)
+def quick_insight_ui(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("quick_insight.html", {"request": request})
+
+
+@app.get("/ui/quick-reports", response_class=HTMLResponse)
+def quick_reports_ui(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("quick_reports.html", {"request": request})
+
+
+@app.get("/ui/quick-report/{report_id}", response_class=HTMLResponse)
+def quick_report_ui(request: Request, report_id: str) -> HTMLResponse:
+    return templates.TemplateResponse(
+        "quick_report.html", {"request": request, "report_id": report_id}
+    )
 
 
 @app.get("/ui/report/{task_id}", response_class=HTMLResponse)
@@ -833,6 +852,50 @@ def run_crawler(source_id: str) -> JSONResponse:
 def run_all_crawlers() -> JSONResponse:
     crawler_service.run_due_sources()
     return JSONResponse({"status": "ok"})
+
+
+@app.post("/api/quick-insights", response_class=JSONResponse)
+def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
+    input_text = str(payload.get("input_text", "")).strip()
+    if not input_text:
+        raise HTTPException(status_code=400, detail="input_text is required")
+    title = str(payload.get("title", "")).strip()
+    objective = str(payload.get("objective", "")).strip() or "快速洞察报告"
+    llm = create_llm_client()
+    sections = build_quick_report_sections(input_text, objective, llm)
+    summary = "\n".join(sections[0].get("bullets", []) if sections else [])
+    report_payload = {
+        "title": title,
+        "objective": objective,
+        "summary": summary,
+        "report_sections": sections,
+    }
+    report_id = quick_store.create_report(report_payload, title=title)
+    report_payload.update({"report_id": report_id})
+    return JSONResponse(report_payload)
+
+
+@app.get("/api/quick-insights", response_class=JSONResponse)
+def list_quick_insights(limit: int = 20) -> JSONResponse:
+    limit = min(max(limit, 1), 200)
+    items = quick_store.list_reports(limit=limit)
+    return JSONResponse({"items": items})
+
+
+@app.get("/api/quick-insights/{report_id}", response_class=JSONResponse)
+def get_quick_insight(report_id: str) -> JSONResponse:
+    payload = quick_store.get_report(report_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return JSONResponse(payload)
+
+
+@app.delete("/api/quick-insights/{report_id}", response_class=JSONResponse)
+def delete_quick_insight(report_id: str) -> JSONResponse:
+    deleted = quick_store.delete_report(report_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return JSONResponse({"status": "deleted"})
 
 
 @app.get("/api/config/report-templates/all", response_class=JSONResponse)
