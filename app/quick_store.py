@@ -59,6 +59,13 @@ class QuickReportStore:
         file_url = payload.get("file_url") or f"/quick-reports-files/{report_id}.html"
         if html_content:
             self._ensure_report_file(file_path, html_content)
+        elif os.path.exists(file_path):
+            try:
+                with open(file_path, "r", encoding="utf-8") as handle:
+                    html_content = handle.read()
+                payload["html_content"] = html_content
+            except OSError:
+                pass
         payload.update(
             {
                 "report_id": report_id,
