@@ -300,7 +300,7 @@ def _bullets_from_source(
     return []
 
 
-def build_quick_html_report(prompt: str, llm: BaseLLMClient) -> str:
+def build_quick_html_report(prompt: str, llm: BaseLLMClient, max_tokens: int = 4096) -> str:
     if llm.is_mock:
         bullets = _summary_to_bullets(prompt)
         return _wrap_html(
@@ -311,7 +311,7 @@ def build_quick_html_report(prompt: str, llm: BaseLLMClient) -> str:
                 ("结论与下一步", ["总结核心观点", "明确验证计划", "持续补充材料"]),
             ],
         )
-    return llm.generate(prompt, max_tokens=1200).text.strip()
+    return llm.generate(prompt, max_tokens=max_tokens).text.strip()
 
 
 def _wrap_html(title: str, sections: List[tuple]) -> str:

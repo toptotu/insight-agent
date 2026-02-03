@@ -712,7 +712,10 @@ async function initQuickInsightPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      quickResultMeta.innerHTML = `报告ID：${response.report_id} | <a href="/ui/quick-report/${response.report_id}" target="_blank">打开报告</a>`;
+      const viewLink = response.file_url
+        ? `<a href="${response.file_url}" target="_blank">打开报告</a>`
+        : `<a href="/ui/quick-report/${response.report_id}" target="_blank">打开报告</a>`;
+      quickResultMeta.innerHTML = `报告ID：${response.report_id} | ${viewLink} | <a href="/ui/quick-report/${response.report_id}" target="_blank">编辑</a>`;
       quickResultSummary.textContent = response.summary || "已生成报告。";
     } catch (error) {
       quickResultSummary.textContent = `生成失败：${error.message}`;
@@ -742,19 +745,23 @@ async function initQuickReportsPage() {
       </div>
     `;
     const rows = items
-      .map(
-        (item) => `
+      .map((item) => {
+        const viewLink = item.file_url
+          ? `<a href="${item.file_url}" target="_blank">查看</a>`
+          : `<a href="/ui/quick-report/${item.report_id}" target="_blank">查看</a>`;
+        return `
         <div class="table-row">
           <div>${formatDate(item.created_at)}</div>
           <div>${item.title || "-"}</div>
           <div>${item.summary_line || ""}</div>
           <div>
-            <a href="/ui/quick-report/${item.report_id}" target="_blank">查看</a>
+            ${viewLink}
+            <a href="/ui/quick-report/${item.report_id}" target="_blank">编辑</a>
             <button class="button action danger" data-action="delete" data-id="${item.report_id}">删除</button>
           </div>
         </div>
-      `
-      )
+      `;
+      })
       .join("");
     table.innerHTML = header + rows;
   };
@@ -784,9 +791,9 @@ async function initQuickReportPage() {
   if (!window.__QUICK_REPORT_ID__) {
     return;
   }
-  const quickFrame = document.getElementById("quickHtmlFrame");
   const quickEditToggle = document.getElementById("quickEditToggle");
   const quickEditPanel = document.getElementById("quickEditPanel");
+  const quickReportLink = document.getElementById("quickReportLink");
   const quickEditPrompt = document.getElementById("quickEditPrompt");
   const quickEditHtml = document.getElementById("quickEditHtml");
   const quickEditSave = document.getElementById("quickEditSave");
@@ -794,8 +801,8 @@ async function initQuickReportPage() {
   try {
     const response = await fetchJSON(`/api/quick-insights/${window.__QUICK_REPORT_ID__}`);
     currentReport = response;
-    if (quickFrame) {
-      quickFrame.srcdoc = response.html_content || "";
+    if (quickReportLink && response.file_url) {
+      quickReportLink.innerHTML = `报告链接：<a href="${response.file_url}" target="_blank">${response.file_url}</a>`;
     }
     if (quickEditHtml) {
       if (quickEditPrompt) {
@@ -804,8 +811,8 @@ async function initQuickReportPage() {
       quickEditHtml.value = response.html_content || "";
     }
   } catch (error) {
-    if (quickFrame) {
-      quickFrame.srcdoc = `加载失败：${error.message}`;
+    if (quickReportLink) {
+      quickReportLink.textContent = `加载失败：${error.message}`;
     }
   }
 
@@ -828,8 +835,8 @@ async function initQuickReportPage() {
           body: JSON.stringify(payload),
         });
         currentReport = response;
-        if (quickFrame) {
-          quickFrame.srcdoc = response.html_content || "";
+        if (quickReportLink && response.file_url) {
+          quickReportLink.innerHTML = `报告链接：<a href="${response.file_url}" target="_blank">${response.file_url}</a>`;
         }
         quickEditHtml.value = response.html_content || "";
       } catch (error) {

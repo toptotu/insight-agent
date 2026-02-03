@@ -47,6 +47,13 @@ quick_store = QuickReportStore(BASE_DIR)
 app = FastAPI(title="Insight Platform", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "app", "static")), name="static")
+QUICK_REPORTS_DIR = os.path.join(BASE_DIR, "data", "quick_reports")
+os.makedirs(QUICK_REPORTS_DIR, exist_ok=True)
+app.mount(
+    "/quick-reports-files",
+    StaticFiles(directory=QUICK_REPORTS_DIR),
+    name="quick_reports_files",
+)
 
 INSIGHT_FLOW = [
     {
@@ -860,7 +867,12 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt is required")
     llm = create_llm_client()
-    html_content = build_quick_html_report(prompt, llm)
+    max_tokens = int(os.getenv("QUICK_MAX_TOKENS", "4096"))
+    max_bytes = int(os.getenv("QUICK_MAX_HTML_BYTES", "1000000"))
+    html_content = build_quick_html_report(prompt, llm, max_tokens=max_tokens)
+    html_bytes = html_content.encode("utf-8")
+    if len(html_bytes) > max_bytes:
+        html_content = html_bytes[:max_bytes].decode("utf-8", errors="ignore")
     summary = html_content[:200].replace("\n", " ")
     report_payload = {
         "title": "",
@@ -870,7 +882,12 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
         "html_content": html_content,
     }
     report_id = quick_store.create_report(report_payload, title="")
-    report_payload.update({"report_id": report_id})
+    file_path = os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
+    with open(file_path, "w", encoding="utf-8") as handle:
+        handle.write(html_content)
+    file_url = f"/quick-reports-files/{report_id}.html"
+    report_payload.update({"report_id": report_id, "file_path": file_path, "file_url": file_url})
+    quick_store.update_report(report_id, report_payload, title="")
     return JSONResponse(report_payload)
 
 
@@ -891,9 +908,15 @@ def get_quick_insight(report_id: str) -> JSONResponse:
 
 @app.delete("/api/quick-insights/{report_id}", response_class=JSONResponse)
 def delete_quick_insight(report_id: str) -> JSONResponse:
+    report = quick_store.get_report(report_id)
     deleted = quick_store.delete_report(report_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
+    if report and report.get("file_path"):
+        try:
+            os.remove(report["file_path"])
+        except OSError:
+            pass
     return JSONResponse({"status": "deleted"})
 
 
@@ -908,12 +931,18 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
         summary = html_content[:200].replace("\n", " ")
     if not summary:
         summary = str(report.get("summary", "")).strip()
+    file_path = report.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
+    with open(file_path, "w", encoding="utf-8") as handle:
+        handle.write(html_content)
+    file_url = report.get("file_url") or f"/quick-reports-files/{report_id}.html"
     updated_payload = {
         **report,
         "title": report.get("title", ""),
         "objective": report.get("objective", ""),
         "summary": summary,
         "html_content": html_content,
+        "file_path": file_path,
+        "file_url": file_url,
     }
     quick_store.update_report(report_id, updated_payload, title=str(report.get("title", "")))
     return JSONResponse(updated_payload)

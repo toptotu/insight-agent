@@ -81,6 +81,7 @@ class QuickReportStore:
                     "created_at": row[1],
                     "title": row[2] or "",
                     "summary_line": summary_line,
+                    "file_url": payload.get("file_url", ""),
                 }
             )
         return items
@@ -97,10 +98,6 @@ class QuickReportStore:
             conn.commit()
         return True
 
-
-def _strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text)
-
     def update_report(self, report_id: str, payload: Dict[str, Any], title: str = "") -> bool:
         with self._lock, sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
@@ -115,3 +112,7 @@ def _strip_html(text: str) -> str:
             )
             conn.commit()
         return True
+
+
+def _strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text)
