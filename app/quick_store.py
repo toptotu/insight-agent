@@ -12,8 +12,10 @@ class QuickReportStore:
     def __init__(self, base_dir: str) -> None:
         self.base_dir = base_dir
         self.db_path = os.path.join(base_dir, "data", "store.db")
+        self.reports_dir = os.path.join(base_dir, "data", "quick_reports")
         self._lock = threading.Lock()
         self._ensure_db()
+        os.makedirs(self.reports_dir, exist_ok=True)
 
     def _ensure_db(self) -> None:
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -51,7 +53,21 @@ class QuickReportStore:
         if not row:
             return None
         payload = json.loads(row[3])
-        payload.update({"report_id": row[0], "created_at": row[1], "title": row[2] or ""})
+        report_id = row[0]
+        html_content = payload.get("html_content", "") or ""
+        file_path = payload.get("file_path") or os.path.join(self.reports_dir, f"{report_id}.html")
+        file_url = payload.get("file_url") or f"/quick-reports-files/{report_id}.html"
+        if html_content:
+            self._ensure_report_file(file_path, html_content)
+        payload.update(
+            {
+                "report_id": report_id,
+                "created_at": row[1],
+                "title": row[2] or payload.get("title", ""),
+                "file_path": file_path,
+                "file_url": file_url,
+            }
+        )
         return payload
 
     def list_reports(self, limit: int = 20) -> List[Dict[str, Any]]:
@@ -68,6 +84,7 @@ class QuickReportStore:
         items: List[Dict[str, Any]] = []
         for row in rows:
             payload = json.loads(row[3])
+            report_id = row[0]
             summary = payload.get("summary", "") or ""
             if not summary:
                 html_content = payload.get("html_content", "") or ""
@@ -75,7 +92,11 @@ class QuickReportStore:
             if not summary:
                 summary = payload.get("prompt", "")[:120]
             summary_line = summary.splitlines()[0] if summary else ""
-            file_url = payload.get("file_url") or f"/quick-reports-files/{row[0]}.html"
+            html_content = payload.get("html_content", "") or ""
+            file_path = payload.get("file_path") or os.path.join(self.reports_dir, f"{report_id}.html")
+            file_url = payload.get("file_url") or f"/quick-reports-files/{report_id}.html"
+            if html_content:
+                self._ensure_report_file(file_path, html_content)
             prompt = payload.get("prompt", "") or ""
             prompt_preview = prompt[:200]
             title = row[2] or ""
@@ -83,7 +104,7 @@ class QuickReportStore:
                 title = prompt_preview
             items.append(
                 {
-                    "report_id": row[0],
+                    "report_id": report_id,
                     "created_at": row[1],
                     "title": title,
                     "summary_line": summary_line,
@@ -104,6 +125,17 @@ class QuickReportStore:
             conn.execute("DELETE FROM quick_reports WHERE report_id = ?", (report_id,))
             conn.commit()
         return True
+
+    def _ensure_report_file(self, file_path: str, html_content: str) -> None:
+        if not file_path:
+            return
+        if os.path.exists(file_path):
+            return
+        try:
+            with open(file_path, "w", encoding="utf-8") as handle:
+                handle.write(html_content)
+        except OSError:
+            return
 
     def update_report(self, report_id: str, payload: Dict[str, Any], title: str = "") -> bool:
         with self._lock, sqlite3.connect(self.db_path) as conn:

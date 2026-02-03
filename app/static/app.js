@@ -844,6 +844,7 @@ async function initQuickReportPage() {
   const quickEditToggle = document.getElementById("quickEditToggle");
   const quickEditPanel = document.getElementById("quickEditPanel");
   const quickReportLink = document.getElementById("quickReportLink");
+  const quickPreviewFrame = document.getElementById("quickPreviewFrame");
   const quickEditPrompt = document.getElementById("quickEditPrompt");
   const quickEditHtml = document.getElementById("quickEditHtml");
   const quickEditSave = document.getElementById("quickEditSave");
@@ -853,6 +854,9 @@ async function initQuickReportPage() {
     currentReport = response;
     if (quickReportLink && response.file_url) {
       quickReportLink.innerHTML = `报告链接：<a href="${response.file_url}" target="_blank">${response.file_url}</a>`;
+    }
+    if (quickPreviewFrame && response.file_url) {
+      quickPreviewFrame.src = response.file_url;
     }
     if (quickEditHtml) {
       if (quickEditPrompt) {
@@ -887,6 +891,9 @@ async function initQuickReportPage() {
         currentReport = response;
         if (quickReportLink && response.file_url) {
           quickReportLink.innerHTML = `报告链接：<a href="${response.file_url}" target="_blank">${response.file_url}</a>`;
+        }
+        if (quickPreviewFrame && response.file_url) {
+          quickPreviewFrame.src = response.file_url;
         }
         quickEditHtml.value = response.html_content || "";
       } catch (error) {
