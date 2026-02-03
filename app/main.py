@@ -874,20 +874,21 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     if len(html_bytes) > max_bytes:
         html_content = html_bytes[:max_bytes].decode("utf-8", errors="ignore")
     summary = html_content[:200].replace("\n", " ")
+    title = prompt[:80]
     report_payload = {
-        "title": "",
+        "title": title,
         "objective": "",
         "prompt": prompt,
         "summary": summary,
         "html_content": html_content,
     }
-    report_id = quick_store.create_report(report_payload, title="")
+    report_id = quick_store.create_report(report_payload, title=title)
     file_path = os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
     with open(file_path, "w", encoding="utf-8") as handle:
         handle.write(html_content)
     file_url = f"/quick-reports-files/{report_id}.html"
     report_payload.update({"report_id": report_id, "file_path": file_path, "file_url": file_url})
-    quick_store.update_report(report_id, report_payload, title="")
+    quick_store.update_report(report_id, report_payload, title=title)
     return JSONResponse(report_payload)
 
 
@@ -903,6 +904,15 @@ def get_quick_insight(report_id: str) -> JSONResponse:
     payload = quick_store.get_report(report_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Report not found")
+    file_path = payload.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
+    file_url = payload.get("file_url") or f"/quick-reports-files/{report_id}.html"
+    html_content = payload.get("html_content", "")
+    if html_content and not os.path.exists(file_path):
+        with open(file_path, "w", encoding="utf-8") as handle:
+            handle.write(html_content)
+    payload.update({"file_path": file_path, "file_url": file_url})
+    if not payload.get("title"):
+        payload["title"] = (payload.get("prompt", "") or "")[:80]
     return JSONResponse(payload)
 
 
@@ -940,16 +950,17 @@ def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResp
     with open(file_path, "w", encoding="utf-8") as handle:
         handle.write(html_content)
     file_url = report.get("file_url") or f"/quick-reports-files/{report_id}.html"
+    title = report.get("title") or (report.get("prompt", "") or "")[:80]
     updated_payload = {
         **report,
-        "title": report.get("title", ""),
+        "title": title,
         "objective": report.get("objective", ""),
         "summary": summary,
         "html_content": html_content,
         "file_path": file_path,
         "file_url": file_url,
     }
-    quick_store.update_report(report_id, updated_payload, title=str(report.get("title", "")))
+    quick_store.update_report(report_id, updated_payload, title=title)
     return JSONResponse(updated_payload)
 
 

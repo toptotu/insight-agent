@@ -76,13 +76,19 @@ class QuickReportStore:
                 summary = payload.get("prompt", "")[:120]
             summary_line = summary.splitlines()[0] if summary else ""
             file_url = payload.get("file_url") or f"/quick-reports-files/{row[0]}.html"
+            prompt = payload.get("prompt", "") or ""
+            prompt_preview = prompt[:200]
+            title = row[2] or ""
+            if not title:
+                title = prompt_preview
             items.append(
                 {
                     "report_id": row[0],
                     "created_at": row[1],
-                    "title": row[2] or "",
+                    "title": title,
                     "summary_line": summary_line,
                     "file_url": file_url,
+                    "prompt_preview": prompt_preview,
                 }
             )
         return items

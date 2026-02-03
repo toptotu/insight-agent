@@ -697,6 +697,7 @@ async function initQuickInsightPage() {
   const quickRunBtn = document.getElementById("quickRunBtn");
   const quickResultMeta = document.getElementById("quickResultMeta");
   const quickResultSummary = document.getElementById("quickResultSummary");
+  const quickPromptHistory = document.getElementById("quickPromptHistory");
 
   quickRunBtn.addEventListener("click", async () => {
     quickRunBtn.disabled = true;
@@ -724,6 +725,55 @@ async function initQuickInsightPage() {
       quickRunBtn.textContent = "生成洞察报告";
     }
   });
+
+  if (quickPromptHistory) {
+    const renderHistory = (items) => {
+      if (!items || !items.length) {
+        quickPromptHistory.textContent = "暂无历史提示词。";
+        return;
+      }
+      const header = `
+        <div class="table-row table-header">
+          <div>时间</div>
+          <div>提示词</div>
+          <div>操作</div>
+        </div>
+      `;
+      const rows = items
+        .map(
+          (item) => `
+          <div class="table-row">
+            <div>${formatDate(item.created_at)}</div>
+            <div>${item.prompt_preview || ""}</div>
+            <div>
+              <button class="button action" data-action="use" data-id="${item.report_id}">使用</button>
+            </div>
+          </div>
+        `
+        )
+        .join("");
+      quickPromptHistory.innerHTML = header + rows;
+    };
+
+    const refreshHistory = async () => {
+      const response = await fetchJSON("/api/quick-insights?limit=20");
+      renderHistory(response.items || []);
+    };
+
+    quickPromptHistory.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action='use']");
+      if (!button) {
+        return;
+      }
+      const reportId = button.dataset.id;
+      const response = await fetchJSON(`/api/quick-insights/${reportId}`);
+      if (response.prompt) {
+        quickPrompt.value = response.prompt;
+      }
+    });
+
+    await refreshHistory();
+  }
 }
 
 async function initQuickReportsPage() {
