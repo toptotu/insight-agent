@@ -75,13 +75,14 @@ class QuickReportStore:
             if not summary:
                 summary = payload.get("prompt", "")[:120]
             summary_line = summary.splitlines()[0] if summary else ""
+            file_url = payload.get("file_url") or f"/quick-reports-files/{row[0]}.html"
             items.append(
                 {
                     "report_id": row[0],
                     "created_at": row[1],
                     "title": row[2] or "",
                     "summary_line": summary_line,
-                    "file_url": payload.get("file_url", ""),
+                    "file_url": file_url,
                 }
             )
         return items

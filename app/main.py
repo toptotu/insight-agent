@@ -912,9 +912,14 @@ def delete_quick_insight(report_id: str) -> JSONResponse:
     deleted = quick_store.delete_report(report_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
-    if report and report.get("file_path"):
+    file_path = None
+    if report:
+        file_path = report.get("file_path")
+    if not file_path:
+        file_path = os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
+    if file_path:
         try:
-            os.remove(report["file_path"])
+            os.remove(file_path)
         except OSError:
             pass
     return JSONResponse({"status": "deleted"})
