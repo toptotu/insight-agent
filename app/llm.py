@@ -1,4 +1,5 @@
 import os
+import time
 from dataclasses import dataclass
 from typing import Any, Dict
 
@@ -39,9 +40,25 @@ class AliyunLLMClient(BaseLLMClient):
                 "temperature": temperature,
             },
         }
-        response = requests.post(self.api_base, headers=headers, json=payload, timeout=45)
-        response.raise_for_status()
-        data = response.json()
+        timeout_seconds = float(os.getenv("ALI_API_TIMEOUT", "120"))
+        max_retries = int(os.getenv("ALI_API_RETRIES", "2"))
+        last_error: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_base, headers=headers, json=payload, timeout=timeout_seconds
+                )
+                response.raise_for_status()
+                data = response.json()
+                break
+            except (requests.exceptions.ReadTimeout, requests.exceptions.RequestException) as exc:
+                last_error = exc
+                if attempt < max_retries - 1:
+                    time.sleep(2**attempt)
+                    continue
+                raise
+        else:
+            raise last_error if last_error else RuntimeError("LLM request failed")
         output = data.get("output", {})
         text = output.get("text")
         if not text and isinstance(output.get("choices"), list):

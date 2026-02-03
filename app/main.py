@@ -867,7 +867,7 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     if not prompt:
         raise HTTPException(status_code=400, detail="prompt is required")
     llm = create_llm_client()
-    max_tokens = int(os.getenv("QUICK_MAX_TOKENS", "4096"))
+    max_tokens = int(os.getenv("QUICK_MAX_TOKENS", "8192"))
     max_bytes = int(os.getenv("QUICK_MAX_HTML_BYTES", "1000000"))
     html_content = build_quick_html_report(prompt, llm, max_tokens=max_tokens)
     html_bytes = html_content.encode("utf-8")

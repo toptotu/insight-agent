@@ -64,6 +64,15 @@ The platform follows a generic flow: objective -> RAG retrieval -> Agent insight
 Use `/ui/quick-insight` to generate a PPT-style HTML report from direct input
 text. Manage reports at `/ui/quick-reports`.
 
+Environment overrides:
+
+```bash
+export QUICK_MAX_TOKENS=8192
+export QUICK_MAX_HTML_BYTES=1000000
+export ALI_API_TIMEOUT=120
+export ALI_API_RETRIES=2
+```
+
 ## Environment variables
 
 Copy `.env.example` to `.env` and set your Aliyun API key to enable LLM mode.
