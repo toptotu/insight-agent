@@ -35,23 +35,59 @@ class QuickReportStore:
     def create_report(self, payload: Dict[str, Any], title: str = "") -> str:
         report_id = uuid.uuid4().hex
         now = int(time.time())
+        self.upsert_report(report_id, payload, title=title, created_at=now)
+        return report_id
+
+    def upsert_report(
+        self,
+        report_id: str,
+        payload: Dict[str, Any],
+        title: str = "",
+        created_at: Optional[int] = None,
+    ) -> None:
+        now = created_at or int(time.time())
         data = json.dumps(payload, ensure_ascii=False)
         with self._lock, sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                "INSERT INTO quick_reports (report_id, created_at, title, payload) VALUES (?, ?, ?, ?)",
+                """
+                INSERT INTO quick_reports (report_id, created_at, title, payload)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(report_id) DO UPDATE SET
+                    title = excluded.title,
+                    payload = excluded.payload
+                """,
                 (report_id, now, title, data),
             )
             conn.commit()
-        return report_id
 
     def get_report(self, report_id: str) -> Optional[Dict[str, Any]]:
+        row = None
         with self._lock, sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT report_id, created_at, title, payload FROM quick_reports WHERE report_id = ?",
                 (report_id,),
             ).fetchone()
         if not row:
-            return None
+            file_path = os.path.join(self.reports_dir, f"{report_id}.html")
+            if not os.path.exists(file_path):
+                return None
+            try:
+                with open(file_path, "r", encoding="utf-8") as handle:
+                    html_content = handle.read()
+            except OSError:
+                return None
+            payload = {
+                "report_id": report_id,
+                "title": report_id,
+                "objective": "",
+                "prompt": "",
+                "summary": _strip_html(html_content)[:200],
+                "html_content": html_content,
+            }
+            file_url = f"/quick-reports-files/{report_id}.html"
+            payload.update({"file_path": file_path, "file_url": file_url})
+            self.upsert_report(report_id, payload, title=payload["title"])
+            return payload
         payload = json.loads(row[3])
         report_id = row[0]
         html_content = payload.get("html_content", "") or ""
@@ -119,6 +155,32 @@ class QuickReportStore:
                     "prompt_preview": prompt_preview,
                 }
             )
+        items_map = {item["report_id"]: item for item in items}
+        for filename in os.listdir(self.reports_dir):
+            if not filename.endswith(".html"):
+                continue
+            report_id = filename.replace(".html", "")
+            if report_id in items_map:
+                continue
+            file_path = os.path.join(self.reports_dir, filename)
+            try:
+                with open(file_path, "r", encoding="utf-8") as handle:
+                    html_content = handle.read()
+            except OSError:
+                continue
+            created_at = int(os.path.getmtime(file_path))
+            summary = _strip_html(html_content)[:120]
+            item = {
+                "report_id": report_id,
+                "created_at": created_at,
+                "title": report_id,
+                "summary_line": summary,
+                "file_url": f"/quick-reports-files/{report_id}.html",
+                "prompt_preview": "",
+            }
+            items.append(item)
+        items.sort(key=lambda item: item.get("created_at", 0), reverse=True)
+        return items[:limit]
         return items
 
     def delete_report(self, report_id: str) -> bool:

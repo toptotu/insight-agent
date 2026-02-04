@@ -888,7 +888,7 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
         handle.write(html_content)
     file_url = f"/quick-reports-files/{report_id}.html"
     report_payload.update({"report_id": report_id, "file_path": file_path, "file_url": file_url})
-    quick_store.update_report(report_id, report_payload, title=title)
+    quick_store.upsert_report(report_id, report_payload, title=title)
     return JSONResponse(report_payload)
 
 
