@@ -817,8 +817,22 @@ async function initQuickReportsPage() {
   };
 
   const refresh = async () => {
-    const response = await fetchJSON("/api/quick-insights?limit=50");
-    renderTable(response.items || []);
+    const [dbResp, fileResp] = await Promise.all([
+      fetchJSON("/api/quick-insights?limit=200"),
+      fetchJSON("/api/quick-reports-files?limit=500"),
+    ]);
+    const merged = new Map();
+    (fileResp.items || []).forEach((item) => {
+      merged.set(item.report_id, item);
+    });
+    (dbResp.items || []).forEach((item) => {
+      const existing = merged.get(item.report_id) || {};
+      merged.set(item.report_id, { ...existing, ...item });
+    });
+    const items = Array.from(merged.values()).sort(
+      (a, b) => (b.created_at || 0) - (a.created_at || 0)
+    );
+    renderTable(items);
   };
 
   table.addEventListener("click", async (event) => {

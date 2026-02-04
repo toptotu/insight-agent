@@ -993,6 +993,26 @@ def list_quick_insights(limit: int = 20) -> JSONResponse:
     return JSONResponse({"items": items})
 
 
+@app.get("/api/quick-reports-files", response_class=JSONResponse)
+def list_quick_report_files(limit: int = 200) -> JSONResponse:
+    items: List[Dict[str, object]] = []
+    for filename in os.listdir(QUICK_REPORTS_DIR):
+        if not filename.endswith(".html"):
+            continue
+        report_id = filename.replace(".html", "")
+        file_path = os.path.join(QUICK_REPORTS_DIR, filename)
+        created_at = int(os.path.getmtime(file_path))
+        items.append(
+            {
+                "report_id": report_id,
+                "file_url": f"/quick-reports-files/{filename}",
+                "created_at": created_at,
+            }
+        )
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    return JSONResponse({"items": items[: min(max(limit, 1), 500)]})
+
+
 @app.get("/api/quick-insights/{report_id}", response_class=JSONResponse)
 def get_quick_insight(report_id: str) -> JSONResponse:
     payload = quick_store.get_report(report_id)
