@@ -297,7 +297,8 @@ def quick_insight_ui(request: Request) -> HTMLResponse:
 
 @app.get("/ui/quick-reports", response_class=HTMLResponse)
 def quick_reports_ui(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("quick_reports.html", {"request": request})
+    items = quick_store.list_reports(limit=200)
+    return templates.TemplateResponse("quick_reports.html", {"request": request, "items": items})
 
 
 @app.get("/ui/quick-report/{report_id}", response_class=HTMLResponse)
@@ -305,6 +306,20 @@ def quick_report_ui(request: Request, report_id: str) -> HTMLResponse:
     return templates.TemplateResponse(
         "quick_report.html", {"request": request, "report_id": report_id}
     )
+
+
+@app.post("/ui/quick-reports/{report_id}/delete")
+def quick_report_delete_action(request: Request, report_id: str):
+    report = quick_store.get_report(report_id)
+    quick_store.delete_report(report_id)
+    if report:
+        file_path = report.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
+        if file_path:
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+    return RedirectResponse(url="/ui/quick-reports", status_code=303)
 
 
 @app.get("/ui/report/{task_id}", response_class=HTMLResponse)

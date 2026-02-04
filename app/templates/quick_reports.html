@@ -4,6 +4,35 @@
 <section class="panel">
   <h2>快速洞察报告列表</h2>
   <p class="meta">管理快速洞察生成的报告，可查看或删除。</p>
-  <div id="quickReportTable" class="table"></div>
+  <div id="quickReportTable" class="table" data-static="true">
+    {% if items %}
+    <div class="table-row table-header">
+      <div>时间</div>
+      <div>标题</div>
+      <div>提示词</div>
+      <div>操作</div>
+    </div>
+    {% for item in items %}
+    <div class="table-row">
+      <div>{{ item.created_at }}</div>
+      <div>{{ item.title or '-' }}</div>
+      <div>{{ item.prompt_preview or '' }}</div>
+      <div>
+        {% if item.file_url %}
+        <a href="{{ item.file_url }}" target="_blank">查看</a>
+        {% else %}
+        <a href="/ui/quick-report/{{ item.report_id }}" target="_blank">查看</a>
+        {% endif %}
+        <a href="/ui/quick-report/{{ item.report_id }}" target="_blank">编辑</a>
+        <form method="post" action="/ui/quick-reports/{{ item.report_id }}/delete" style="display:inline;">
+          <button class="button action danger" type="submit">删除</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="meta">暂无报告。</div>
+    {% endif %}
+  </div>
 </section>
 {% endblock %}

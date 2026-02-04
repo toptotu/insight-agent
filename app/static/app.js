@@ -781,6 +781,9 @@ async function initQuickReportsPage() {
   if (!table) {
     return;
   }
+  if (table.dataset.static === "true") {
+    return;
+  }
   const renderTable = (items) => {
     if (!items || !items.length) {
       table.textContent = "暂无报告。";
