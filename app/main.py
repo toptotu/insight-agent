@@ -17,7 +17,7 @@ from app.llm import create_llm_client
 from app.rag import RAGStore
 from app.report import build_insight_summary, build_quick_html_report, build_report_sections
 from app.report_templates import BUILTIN_REPORT_TEMPLATES
-from app.quick_store import QuickReportStore
+from app.quick_reports import QuickReportManager
 from app.schemas import (
     CreateAgentRequest,
     CreateCrawlerRequest,
@@ -43,7 +43,7 @@ config_store = ConfigStore(BASE_DIR)
 rag_store = RAGStore(BASE_DIR, config_store=config_store)
 task_store = TaskStore(BASE_DIR)
 crawler_service = CrawlerService(config_store, rag_store)
-quick_store = QuickReportStore(BASE_DIR)
+quick_reports = QuickReportManager(BASE_DIR)
 auth_store = AuthStore(BASE_DIR)
 
 app = FastAPI(title="Insight Platform", version="0.1.0")
@@ -297,7 +297,7 @@ def quick_insight_ui(request: Request) -> HTMLResponse:
 
 @app.get("/ui/quick-reports", response_class=HTMLResponse)
 def quick_reports_ui(request: Request) -> HTMLResponse:
-    items = quick_store.list_reports(limit=200)
+    items = quick_reports.list_reports(limit=200)
     return templates.TemplateResponse("quick_reports.html", {"request": request, "items": items})
 
 
@@ -310,15 +310,7 @@ def quick_report_ui(request: Request, report_id: str) -> HTMLResponse:
 
 @app.post("/ui/quick-reports/{report_id}/delete")
 def quick_report_delete_action(request: Request, report_id: str):
-    report = quick_store.get_report(report_id)
-    quick_store.delete_report(report_id)
-    if report:
-        file_path = report.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
-        if file_path:
-            try:
-                os.remove(file_path)
-            except OSError:
-                pass
+    quick_reports.delete_report(report_id)
     return RedirectResponse(url="/ui/quick-reports", status_code=303)
 
 
@@ -982,115 +974,43 @@ def create_quick_insight(payload: Dict[str, object]) -> JSONResponse:
     html_bytes = html_content.encode("utf-8")
     if len(html_bytes) > max_bytes:
         html_content = html_bytes[:max_bytes].decode("utf-8", errors="ignore")
-    summary = html_content[:200].replace("\n", " ")
-    title = prompt[:80]
-    report_payload = {
-        "title": title,
-        "objective": "",
-        "prompt": prompt,
-        "summary": summary,
-        "html_content": html_content,
-    }
-    report_id = quick_store.create_report(report_payload, title=title)
-    file_path = os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
-    with open(file_path, "w", encoding="utf-8") as handle:
-        handle.write(html_content)
-    file_url = f"/quick-reports-files/{report_id}.html"
-    report_payload.update({"report_id": report_id, "file_path": file_path, "file_url": file_url})
-    quick_store.upsert_report(report_id, report_payload, title=title)
-    return JSONResponse(report_payload)
+    report = quick_reports.create_report(prompt, html_content)
+    return JSONResponse(report)
 
 
 @app.get("/api/quick-insights", response_class=JSONResponse)
 def list_quick_insights(limit: int = 20) -> JSONResponse:
     limit = min(max(limit, 1), 200)
-    items = quick_store.list_reports(limit=limit)
+    items = quick_reports.list_reports(limit=limit)
     return JSONResponse({"items": items})
-
-
-@app.get("/api/quick-reports-files", response_class=JSONResponse)
-def list_quick_report_files(limit: int = 200) -> JSONResponse:
-    items: List[Dict[str, object]] = []
-    for filename in os.listdir(QUICK_REPORTS_DIR):
-        if not filename.endswith(".html"):
-            continue
-        report_id = filename.replace(".html", "")
-        file_path = os.path.join(QUICK_REPORTS_DIR, filename)
-        created_at = int(os.path.getmtime(file_path))
-        items.append(
-            {
-                "report_id": report_id,
-                "file_url": f"/quick-reports-files/{filename}",
-                "created_at": created_at,
-            }
-        )
-    items.sort(key=lambda item: item["created_at"], reverse=True)
-    return JSONResponse({"items": items[: min(max(limit, 1), 500)]})
 
 
 @app.get("/api/quick-insights/{report_id}", response_class=JSONResponse)
 def get_quick_insight(report_id: str) -> JSONResponse:
-    payload = quick_store.get_report(report_id)
+    payload = quick_reports.get_report(report_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Report not found")
-    file_path = payload.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
-    file_url = payload.get("file_url") or f"/quick-reports-files/{report_id}.html"
-    html_content = payload.get("html_content", "")
-    if html_content and not os.path.exists(file_path):
-        with open(file_path, "w", encoding="utf-8") as handle:
-            handle.write(html_content)
-    payload.update({"file_path": file_path, "file_url": file_url})
-    if not payload.get("title"):
-        payload["title"] = (payload.get("prompt", "") or "")[:80]
     return JSONResponse(payload)
 
 
 @app.delete("/api/quick-insights/{report_id}", response_class=JSONResponse)
 def delete_quick_insight(report_id: str) -> JSONResponse:
-    report = quick_store.get_report(report_id)
-    deleted = quick_store.delete_report(report_id)
+    deleted = quick_reports.delete_report(report_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
-    file_path = None
-    if report:
-        file_path = report.get("file_path")
-    if not file_path:
-        file_path = os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
-    if file_path:
-        try:
-            os.remove(file_path)
-        except OSError:
-            pass
     return JSONResponse({"status": "deleted"})
 
 
 @app.put("/api/quick-insights/{report_id}", response_class=JSONResponse)
 def update_quick_insight(report_id: str, payload: Dict[str, object]) -> JSONResponse:
-    report = quick_store.get_report(report_id)
+    report = quick_reports.get_report(report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     html_content = str(payload.get("html_content", report.get("html_content", ""))).strip()
-    summary = str(payload.get("summary", "")).strip()
-    if not summary and html_content:
-        summary = html_content[:200].replace("\n", " ")
-    if not summary:
-        summary = str(report.get("summary", "")).strip()
-    file_path = report.get("file_path") or os.path.join(QUICK_REPORTS_DIR, f"{report_id}.html")
-    with open(file_path, "w", encoding="utf-8") as handle:
-        handle.write(html_content)
-    file_url = report.get("file_url") or f"/quick-reports-files/{report_id}.html"
-    title = report.get("title") or (report.get("prompt", "") or "")[:80]
-    updated_payload = {
-        **report,
-        "title": title,
-        "objective": report.get("objective", ""),
-        "summary": summary,
-        "html_content": html_content,
-        "file_path": file_path,
-        "file_url": file_url,
-    }
-    quick_store.update_report(report_id, updated_payload, title=title)
-    return JSONResponse(updated_payload)
+    updated = quick_reports.update_report(report_id, html_content)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return JSONResponse(updated)
 
 
 @app.get("/api/config/report-templates/all", response_class=JSONResponse)
