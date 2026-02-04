@@ -4,12 +4,13 @@ from dataclasses import asdict
 from typing import Dict, List
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.agents import load_agent_configs, run_agents
 from app.config_store import ConfigStore
+from app.auth_store import AuthStore
 from app.crawler import CrawlerService
 from app.file_ingest import SUPPORTED_EXTENSIONS, extract_text_from_upload
 from app.llm import create_llm_client
@@ -43,6 +44,7 @@ rag_store = RAGStore(BASE_DIR, config_store=config_store)
 task_store = TaskStore(BASE_DIR)
 crawler_service = CrawlerService(config_store, rag_store)
 quick_store = QuickReportStore(BASE_DIR)
+auth_store = AuthStore(BASE_DIR)
 
 app = FastAPI(title="Insight Platform", version="0.1.0")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "app", "templates"))
@@ -54,6 +56,33 @@ app.mount(
     StaticFiles(directory=QUICK_REPORTS_DIR),
     name="quick_reports_files",
 )
+
+SESSION_COOKIE_NAME = "insight_session_id"
+PUBLIC_PATH_PREFIXES = ("/login", "/change-password", "/health", "/static")
+
+
+def _is_public_path(path: str) -> bool:
+    return path.startswith(PUBLIC_PATH_PREFIXES)
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if _is_public_path(path):
+        return await call_next(request)
+    session_id = request.cookies.get(SESSION_COOKIE_NAME, "")
+    session = auth_store.get_session(session_id)
+    if not session:
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+        return RedirectResponse(url="/login")
+    user = auth_store.get_user(session["username"])
+    if user and user.get("must_change_password") and not path.startswith("/change-password"):
+        if path.startswith("/api/"):
+            return JSONResponse({"detail": "Password change required"}, status_code=403)
+        return RedirectResponse(url="/change-password")
+    request.state.user = user
+    return await call_next(request)
 
 INSIGHT_FLOW = [
     {
@@ -179,6 +208,71 @@ def _list_report_templates() -> List[Dict[str, object]]:
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("login.html", {"request": request, "error": ""})
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login_action(request: Request, username: str = Form(...), password: str = Form(...)):
+    user = auth_store.authenticate(username.strip(), password.strip())
+    if not user:
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "用户名或密码错误"}
+        )
+    session = auth_store.create_session(user["username"])
+    redirect_url = "/change-password" if user.get("must_change_password") else "/"
+    response = RedirectResponse(url=redirect_url, status_code=302)
+    secure_cookie = os.getenv("AUTH_COOKIE_SECURE", "0").lower() in {"1", "true", "yes"}
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        session["session_id"],
+        httponly=True,
+        samesite="lax",
+        secure=secure_cookie,
+        max_age=int(os.getenv("AUTH_SESSION_TTL", "28800")),
+    )
+    return response
+
+
+@app.get("/change-password", response_class=HTMLResponse)
+def change_password_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("change_password.html", {"request": request, "error": ""})
+
+
+@app.post("/change-password", response_class=HTMLResponse)
+def change_password_action(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+):
+    session_id = request.cookies.get(SESSION_COOKIE_NAME, "")
+    session = auth_store.get_session(session_id)
+    if not session:
+        return RedirectResponse(url="/login", status_code=302)
+    user = auth_store.authenticate(session["username"], current_password.strip())
+    if not user:
+        return templates.TemplateResponse(
+            "change_password.html", {"request": request, "error": "原密码错误"}
+        )
+    if len(new_password.strip()) < 8:
+        return templates.TemplateResponse(
+            "change_password.html", {"request": request, "error": "新密码至少8位"}
+        )
+    auth_store.update_password(session["username"], new_password.strip())
+    return RedirectResponse(url="/", status_code=302)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    session_id = request.cookies.get(SESSION_COOKIE_NAME, "")
+    if session_id:
+        auth_store.delete_session(session_id)
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
 
 
 @app.get("/ui/insight", response_class=HTMLResponse)
